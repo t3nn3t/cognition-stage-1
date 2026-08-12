@@ -16,11 +16,15 @@ export function RequestActions({
   state,
   version,
   executeLabel,
+  canDecide,
+  canExecute,
 }: {
   requestId: string;
   state: LifecycleState;
   version: number;
   executeLabel: string;
+  canDecide: boolean;
+  canExecute: boolean;
 }) {
   const [approveFeedback, approve, approving] = useActionState(
     approveRequestAction,
@@ -44,7 +48,7 @@ export function RequestActions({
     <div className="space-y-3">
       {feedback ? <FeedbackBanner feedback={feedback} /> : null}
       <div className="flex flex-wrap items-center gap-2">
-        {state === "pending" ? (
+        {state === "pending" && canDecide ? (
           <>
             <form action={approve}>
               <input type="hidden" name="requestId" value={requestId} />
@@ -62,7 +66,7 @@ export function RequestActions({
             </Button>
           </>
         ) : null}
-        {state === "approved" || state === "failed" ? (
+        {(state === "approved" || state === "failed") && canExecute ? (
           <form action={execute}>
             <input type="hidden" name="requestId" value={requestId} />
             <Button type="submit" disabled={executing}>
@@ -70,7 +74,7 @@ export function RequestActions({
             </Button>
           </form>
         ) : null}
-        {state === "executed" ? (
+        {state === "executed" && canExecute ? (
           <form action={execute}>
             <input type="hidden" name="requestId" value={requestId} />
             <Button type="submit" variant="secondary" disabled={executing}>

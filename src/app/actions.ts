@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import type { CommandResult } from "@/application/results";
 import { dispatchCommand } from "@/application/command-pipeline";
 import { getContainer } from "@/infrastructure/container";
@@ -185,4 +186,5 @@ export async function switchIdentityAction(formData: FormData): Promise<void> {
   const store = await cookies();
   store.set(IDENTITY_COOKIE, userId, { httpOnly: true, sameSite: "lax" });
   revalidatePath("/", "layout");
+  redirect("/");
 }

@@ -6,10 +6,15 @@ async function switchIdentity(page: Page, name: string) {
   if (await accountButton.getByText(name, { exact: true }).isVisible()) {
     return;
   }
+  const previousUrl = page.url();
   await accountButton.click();
   await page.getByRole("menuitem", { name: new RegExp(name) }).click();
   await expect(accountButton.getByText(name, { exact: true })).toBeVisible();
-  await page.keyboard.press("Escape");
+  // Switching identity always returns to the Overview page.
+  await expect(page).toHaveURL(/\/$/);
+  if (new URL(previousUrl).pathname !== "/") {
+    await page.goto(previousUrl);
+  }
 }
 
 test.describe.configure({ mode: "serial" });
@@ -46,7 +51,7 @@ test("refund journey: request, blocked self-approval, approval, execution, idemp
   await expect(page.getByText("Pending approval").first()).toBeVisible();
   await expect(page.getByText("Attempt blocked").first()).toBeVisible();
 
-  // 3. Theo approves it.
+  // 3. Theo approves it (switching lands on Overview, then returns).
   await switchIdentity(page, "Theo Grant");
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText("Request approved.")).toBeVisible();
@@ -96,7 +101,7 @@ test("high-risk KYC decision routes to Priya for Compliance approval", async ({
   await expect(page.getByText("Approved by Priya Shah")).toBeVisible();
 });
 
-test("production flag change: 10% to 100% is rejected by policy; 10% to 35% routes to Alex", async ({
+test("production flag change: 10% to 100% is rejected by policy; 10% to 35% routes to the release approver", async ({
   page,
 }) => {
   await page.goto("/flags");
@@ -120,9 +125,30 @@ test("production flag change: 10% to 100% is rejected by policy; 10% to 35% rout
   await expect(page.getByText("Requires Release Manager")).toBeVisible();
   await expect(page.getByText("10% → 35%")).toBeVisible();
 
-  await switchIdentity(page, "Alex Morgan");
+  await switchIdentity(page, "Theo Grant");
   await page.getByRole("button", { name: "Approve", exact: true }).click();
-  await expect(page.getByText("Approved by Alex Morgan")).toBeVisible();
+  await expect(page.getByText("Approved by Theo Grant")).toBeVisible();
+});
+
+test("approver personas cannot submit requests or act outside their role", async ({
+  page,
+}) => {
+  // Priya (Compliance) cannot request refunds.
+  await page.goto("/refunds");
+  await switchIdentity(page, "Priya Shah");
+  await page.getByRole("link", { name: "Sofia Almeida" }).click();
+  await expect(
+    page.getByText("Only operations team members can request refunds."),
+  ).toBeVisible();
+  await expect(page.getByLabel("Refund amount (USD)")).toHaveCount(0);
+
+  // Priya cannot execute the approved flag change (needs Release Manager).
+  await page.goto("/flags");
+  await page.getByRole("link", { name: "instant-payouts" }).first().click();
+  await expect(page.getByText("Approved by Theo Grant")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply change" })).toHaveCount(
+    0,
+  );
 });
 
 test("activity shows allowed and blocked attempts in human-readable form", async ({

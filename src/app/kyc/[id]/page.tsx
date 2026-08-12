@@ -21,7 +21,9 @@ export default async function KycDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { context } = getContainer();
+  const container = getContainer();
+  const { context } = container;
+  const actor = await container.identity.getCurrentActor();
   const detail = getKycDetail(context, id);
   if (!detail) {
     notFound();
@@ -115,6 +117,13 @@ export default async function KycDetailPage({
                     state={request.state}
                     version={request.version}
                     executeLabel="Apply decision"
+                    canDecide={actor.roles.includes(
+                      request.requiredApproverRole,
+                    )}
+                    canExecute={
+                      actor.roles.includes("operations") ||
+                      actor.roles.includes(request.requiredApproverRole)
+                    }
                   />
                 </div>
               </>
@@ -123,12 +132,18 @@ export default async function KycDetailPage({
                 <h2 className="text-sm font-semibold text-zinc-900">
                   Record a decision
                 </h2>
-                <div className="mt-4">
-                  <KycDecisionForm
-                    kycCaseId={kycCase.id}
-                    highRisk={kycCase.riskLevel === "high"}
-                  />
-                </div>
+                {actor.roles.includes("operations") ? (
+                  <div className="mt-4">
+                    <KycDecisionForm
+                      kycCaseId={kycCase.id}
+                      highRisk={kycCase.riskLevel === "high"}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-zinc-500">
+                    Only operations team members can record decisions.
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-sm text-zinc-500">

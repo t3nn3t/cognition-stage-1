@@ -20,7 +20,9 @@ export default async function FlagDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { context } = getContainer();
+  const container = getContainer();
+  const { context } = container;
+  const actor = await container.identity.getCurrentActor();
   const detail = getFlagDetail(context, id);
   if (!detail) {
     notFound();
@@ -110,6 +112,13 @@ export default async function FlagDetailPage({
                     state={request.state}
                     version={request.version}
                     executeLabel="Apply change"
+                    canDecide={actor.roles.includes(
+                      request.requiredApproverRole,
+                    )}
+                    canExecute={
+                      actor.roles.includes("operations") ||
+                      actor.roles.includes(request.requiredApproverRole)
+                    }
                   />
                 </div>
               </>
@@ -118,13 +127,19 @@ export default async function FlagDetailPage({
                 <h2 className="text-sm font-semibold text-zinc-900">
                   Propose a rollout change
                 </h2>
-                <div className="mt-4">
-                  <FlagChangeForm
-                    flagId={flag.id}
-                    environment={flag.environment}
-                    currentRolloutPercent={flag.rolloutPercent}
-                  />
-                </div>
+                {actor.roles.includes("operations") ? (
+                  <div className="mt-4">
+                    <FlagChangeForm
+                      flagId={flag.id}
+                      environment={flag.environment}
+                      currentRolloutPercent={flag.rolloutPercent}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-zinc-500">
+                    Only operations team members can propose rollout changes.
+                  </p>
+                )}
               </>
             )}
           </section>

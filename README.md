@@ -66,8 +66,12 @@ running with:
 OPS_IDENTITY_SWITCHING=enabled npm run dev
 ```
 
-The switcher then appears inside the account menu (top right). The server only
-accepts the four seeded identities; with the flag off, the switcher is absent
+The switcher then appears inside the account menu (top right); switching
+always returns to the Overview page. The server only accepts the three seeded
+identities — Maya Chen (operations + finance approver), Theo Grant (finance +
+release approver), Priya Shah (compliance officer). Only operations members
+can submit requests, and approve/reject controls are shown only to holders of
+the required approver role (the server enforces both regardless); with the flag off, the switcher is absent
 and identity falls back to the default seed user. The same `IdentityProvider`
 interface is where OIDC/SSO claims would be mapped in production.
 
@@ -84,7 +88,8 @@ development flag is enabled):
 2. Maya holds the Finance Approver role, but approving her own request is
    blocked by separation of duties; the blocked attempt appears in Activity
    and the request remains pending.
-3. Switch to **Theo Grant** and approve.
+3. Switch to **Theo Grant** (switching always returns to Overview) and
+   approve.
 4. Execute the refund — the payment adapter runs exactly once with its own
    idempotency key.
 5. Retry execution — the original provider result is returned; Activity shows
@@ -93,7 +98,7 @@ development flag is enabled):
    (Ravi Narayanan). It routes to **Priya Shah** (Compliance) for approval.
 7. On the production `instant-payouts` flag, propose 10% → 100% — blocked by
    policy (max 25-point production increase). Propose 10% → 35% — accepted and
-   routed to **Alex Morgan** (Release Manager).
+   routed to **Theo Grant** (Release Manager).
 8. Activity shows every allowed and blocked attempt in human-readable form,
    with filters and a raw-metadata detail panel.
 9. Reset/reseed restores the deterministic starting state.

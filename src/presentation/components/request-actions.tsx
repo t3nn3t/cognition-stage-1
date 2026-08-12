@@ -54,6 +54,7 @@ export function RequestActions({
           <>
             <form
               action={approve}
+              className={isRequester ? "cursor-not-allowed" : undefined}
               title={
                 isRequester
                   ? "A requester cannot approve their own request."

@@ -9,8 +9,10 @@ export interface RefundQueueItem {
   request: ChangeRequest | null;
 }
 
-export function listRefundQueue(ctx: CommandContext): RefundQueueItem[] {
-  const requests = ctx.changeRequests.list({ domain: "refund" });
+export async function listRefundQueue(
+  ctx: CommandContext,
+): Promise<RefundQueueItem[]> {
+  const requests = await ctx.changeRequests.list({ domain: "refund" });
   const latestByCase = new Map<string, ChangeRequest>();
   for (const request of requests) {
     if (request.payload.domain !== "refund") {
@@ -21,7 +23,8 @@ export function listRefundQueue(ctx: CommandContext): RefundQueueItem[] {
       latestByCase.set(caseId, request);
     }
   }
-  return ctx.refundCases.list().map((refundCase) => ({
+  const cases = await ctx.refundCases.list();
+  return cases.map((refundCase) => ({
     refundCase,
     request: latestByCase.get(refundCase.id) ?? null,
   }));
@@ -31,19 +34,19 @@ export interface RefundDetail extends RefundQueueItem {
   timeline: ActivityEvent[];
 }
 
-export function getRefundDetail(
+export async function getRefundDetail(
   ctx: CommandContext,
   refundCaseId: string,
-): RefundDetail | null {
-  const refundCase = ctx.refundCases.getById(refundCaseId);
+): Promise<RefundDetail | null> {
+  const refundCase = await ctx.refundCases.getById(refundCaseId);
   if (!refundCase) {
     return null;
   }
+  const queue = await listRefundQueue(ctx);
   const request =
-    listRefundQueue(ctx).find((item) => item.refundCase.id === refundCaseId)
-      ?.request ?? null;
+    queue.find((item) => item.refundCase.id === refundCaseId)?.request ?? null;
   const timeline = request
-    ? ctx.events.list({ correlationId: request.correlationId })
+    ? await ctx.events.list({ correlationId: request.correlationId })
     : [];
   return { refundCase, request, timeline };
 }
@@ -53,8 +56,10 @@ export interface KycQueueItem {
   request: ChangeRequest | null;
 }
 
-export function listKycQueue(ctx: CommandContext): KycQueueItem[] {
-  const requests = ctx.changeRequests.list({ domain: "kyc" });
+export async function listKycQueue(
+  ctx: CommandContext,
+): Promise<KycQueueItem[]> {
+  const requests = await ctx.changeRequests.list({ domain: "kyc" });
   const latestByCase = new Map<string, ChangeRequest>();
   for (const request of requests) {
     if (request.payload.domain !== "kyc") {
@@ -65,7 +70,8 @@ export function listKycQueue(ctx: CommandContext): KycQueueItem[] {
       latestByCase.set(caseId, request);
     }
   }
-  return ctx.kycCases.list().map((kycCase) => ({
+  const cases = await ctx.kycCases.list();
+  return cases.map((kycCase) => ({
     kycCase,
     request: latestByCase.get(kycCase.id) ?? null,
   }));
@@ -75,19 +81,19 @@ export interface KycDetail extends KycQueueItem {
   timeline: ActivityEvent[];
 }
 
-export function getKycDetail(
+export async function getKycDetail(
   ctx: CommandContext,
   kycCaseId: string,
-): KycDetail | null {
-  const kycCase = ctx.kycCases.getById(kycCaseId);
+): Promise<KycDetail | null> {
+  const kycCase = await ctx.kycCases.getById(kycCaseId);
   if (!kycCase) {
     return null;
   }
+  const queue = await listKycQueue(ctx);
   const request =
-    listKycQueue(ctx).find((item) => item.kycCase.id === kycCaseId)?.request ??
-    null;
+    queue.find((item) => item.kycCase.id === kycCaseId)?.request ?? null;
   const timeline = request
-    ? ctx.events.list({ correlationId: request.correlationId })
+    ? await ctx.events.list({ correlationId: request.correlationId })
     : [];
   return { kycCase, request, timeline };
 }
@@ -97,8 +103,8 @@ export interface FlagListItem {
   request: ChangeRequest | null;
 }
 
-export function listFlags(ctx: CommandContext): FlagListItem[] {
-  const requests = ctx.changeRequests.list({ domain: "feature_flag" });
+export async function listFlags(ctx: CommandContext): Promise<FlagListItem[]> {
+  const requests = await ctx.changeRequests.list({ domain: "feature_flag" });
   const latestByFlag = new Map<string, ChangeRequest>();
   for (const request of requests) {
     if (request.payload.domain !== "feature_flag") {
@@ -109,7 +115,8 @@ export function listFlags(ctx: CommandContext): FlagListItem[] {
       latestByFlag.set(flagId, request);
     }
   }
-  return ctx.featureFlags.list().map((flag) => ({
+  const flags = await ctx.featureFlags.list();
+  return flags.map((flag) => ({
     flag,
     request: latestByFlag.get(flag.id) ?? null,
   }));
@@ -119,43 +126,46 @@ export interface FlagDetail extends FlagListItem {
   timeline: ActivityEvent[];
 }
 
-export function getFlagDetail(
+export async function getFlagDetail(
   ctx: CommandContext,
   flagId: string,
-): FlagDetail | null {
-  const flag = ctx.featureFlags.getById(flagId);
+): Promise<FlagDetail | null> {
+  const flag = await ctx.featureFlags.getById(flagId);
   if (!flag) {
     return null;
   }
+  const items = await listFlags(ctx);
   const request =
-    listFlags(ctx).find((item) => item.flag.id === flagId)?.request ?? null;
+    items.find((item) => item.flag.id === flagId)?.request ?? null;
   const timeline = request
-    ? ctx.events.list({ correlationId: request.correlationId })
+    ? await ctx.events.list({ correlationId: request.correlationId })
     : [];
   return { flag, request, timeline };
 }
 
-export function listPendingApprovals(ctx: CommandContext): ChangeRequest[] {
+export function listPendingApprovals(
+  ctx: CommandContext,
+): Promise<ChangeRequest[]> {
   return ctx.changeRequests.list({ state: "pending" });
 }
 
 export function listActivity(
   ctx: CommandContext,
   filter?: ActivityEventFilter,
-): ActivityEvent[] {
+): Promise<ActivityEvent[]> {
   return ctx.events.list(filter);
 }
 
-export function getRequestWithTimeline(
+export async function getRequestWithTimeline(
   ctx: CommandContext,
   requestId: string,
-): { request: ChangeRequest; timeline: ActivityEvent[] } | null {
-  const request = ctx.changeRequests.getById(requestId);
+): Promise<{ request: ChangeRequest; timeline: ActivityEvent[] } | null> {
+  const request = await ctx.changeRequests.getById(requestId);
   if (!request) {
     return null;
   }
   return {
     request,
-    timeline: ctx.events.list({ correlationId: request.correlationId }),
+    timeline: await ctx.events.list({ correlationId: request.correlationId }),
   };
 }

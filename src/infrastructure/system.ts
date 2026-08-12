@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { Clock, IdGenerator, UnitOfWork } from "@/application/ports";
-import type { SqliteDatabase } from "./db";
+import type { Db } from "./db";
 
 export function createSystemClock(): Clock {
   return {
@@ -18,10 +18,10 @@ export function createIdGenerator(): IdGenerator {
   };
 }
 
-export function createSqliteUnitOfWork(db: SqliteDatabase): UnitOfWork {
+export function createPgUnitOfWork(db: Db): UnitOfWork {
   return {
     transact(fn) {
-      return db.transaction(fn)();
+      return db.transact(fn);
     },
   };
 }

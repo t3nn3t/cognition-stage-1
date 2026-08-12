@@ -17,9 +17,9 @@ import { formatAge } from "@/presentation/format";
 
 export const dynamic = "force-dynamic";
 
-export default function KycPage() {
-  const { context } = getContainer();
-  const queue = listKycQueue(context);
+export default async function KycPage() {
+  const { context } = await getContainer();
+  const queue = await listKycQueue(context);
 
   return (
     <div>

@@ -9,7 +9,7 @@ import type {
   KycState,
   RefundCase,
 } from "@/domain/targets";
-import type { SqliteDatabase } from "../db";
+import type { Db } from "../db";
 
 interface RefundCaseRow {
   id: string;
@@ -37,20 +37,19 @@ function toRefundCase(row: RefundCaseRow): RefundCase {
   };
 }
 
-export function createRefundCaseRepository(
-  db: SqliteDatabase,
-): RefundCaseRepository {
+export function createRefundCaseRepository(db: Db): RefundCaseRepository {
   return {
-    getById(id) {
-      const row = db
-        .prepare("SELECT * FROM refund_cases WHERE id = ?")
-        .get(id) as RefundCaseRow | undefined;
-      return row ? toRefundCase(row) : null;
+    async getById(id) {
+      const { rows } = await db.query<RefundCaseRow>(
+        "SELECT * FROM refund_cases WHERE id = $1",
+        [id],
+      );
+      return rows[0] ? toRefundCase(rows[0]) : null;
     },
-    list() {
-      const rows = db
-        .prepare("SELECT * FROM refund_cases ORDER BY charged_at DESC")
-        .all() as RefundCaseRow[];
+    async list() {
+      const { rows } = await db.query<RefundCaseRow>(
+        "SELECT * FROM refund_cases ORDER BY charged_at DESC",
+      );
       return rows.map(toRefundCase);
     },
   };
@@ -82,23 +81,26 @@ function toKycCase(row: KycCaseRow): KycCase {
   };
 }
 
-export function createKycCaseRepository(db: SqliteDatabase): KycCaseRepository {
+export function createKycCaseRepository(db: Db): KycCaseRepository {
   return {
-    getById(id) {
-      const row = db.prepare("SELECT * FROM kyc_cases WHERE id = ?").get(id) as
-        KycCaseRow | undefined;
-      return row ? toKycCase(row) : null;
+    async getById(id) {
+      const { rows } = await db.query<KycCaseRow>(
+        "SELECT * FROM kyc_cases WHERE id = $1",
+        [id],
+      );
+      return rows[0] ? toKycCase(rows[0]) : null;
     },
-    list() {
-      const rows = db
-        .prepare("SELECT * FROM kyc_cases ORDER BY opened_at DESC")
-        .all() as KycCaseRow[];
+    async list() {
+      const { rows } = await db.query<KycCaseRow>(
+        "SELECT * FROM kyc_cases ORDER BY opened_at DESC",
+      );
       return rows.map(toKycCase);
     },
-    setState(id, state, updatedAt) {
-      db.prepare(
-        "UPDATE kyc_cases SET state = ?, updated_at = ? WHERE id = ?",
-      ).run(state, updatedAt, id);
+    async setState(id, state, updatedAt) {
+      await db.query(
+        "UPDATE kyc_cases SET state = $1, updated_at = $2 WHERE id = $3",
+        [state, updatedAt, id],
+      );
     },
   };
 }

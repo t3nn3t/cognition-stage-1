@@ -16,9 +16,9 @@ import { formatDateTime } from "@/presentation/format";
 
 export const dynamic = "force-dynamic";
 
-export default function FlagsPage() {
-  const { context } = getContainer();
-  const flags = listFlags(context);
+export default async function FlagsPage() {
+  const { context } = await getContainer();
+  const flags = await listFlags(context);
 
   return (
     <div>

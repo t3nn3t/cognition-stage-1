@@ -25,10 +25,10 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const container = getContainer();
+  const container = await getContainer();
   const actor = await container.identity.getCurrentActor();
   const switchingEnabled = identitySwitchingEnabled();
-  const actors = switchingEnabled ? container.identity.listActors() : [];
+  const actors = switchingEnabled ? await container.identity.listActors() : [];
 
   return (
     <html lang="en">

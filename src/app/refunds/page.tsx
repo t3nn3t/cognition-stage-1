@@ -13,9 +13,9 @@ import { formatAge, formatMoney } from "@/presentation/format";
 
 export const dynamic = "force-dynamic";
 
-export default function RefundsPage() {
-  const { context } = getContainer();
-  const queue = listRefundQueue(context);
+export default async function RefundsPage() {
+  const { context } = await getContainer();
+  const queue = await listRefundQueue(context);
 
   return (
     <div>

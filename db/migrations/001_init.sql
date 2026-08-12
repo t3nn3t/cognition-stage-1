@@ -37,7 +37,7 @@ CREATE TABLE feature_flags (
   environment TEXT NOT NULL,
   rollout_percent INTEGER NOT NULL,
   owner_team TEXT NOT NULL,
-  enabled INTEGER NOT NULL,
+  enabled BOOLEAN NOT NULL,
   last_changed_at TEXT
 );
 

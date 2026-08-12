@@ -18,10 +18,10 @@ export default async function RefundDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const container = getContainer();
+  const container = await getContainer();
   const { context } = container;
   const actor = await container.identity.getCurrentActor();
-  const detail = getRefundDetail(context, id);
+  const detail = await getRefundDetail(context, id);
   if (!detail) {
     notFound();
   }

@@ -1,5 +1,5 @@
 import type { Actor } from "@/domain/shared";
-import type { SqliteDatabase } from "./db";
+import type { Db } from "./db";
 
 export const SEED_USERS: readonly Actor[] = [
   {
@@ -206,7 +206,7 @@ interface SeedFlag {
   environment: string;
   rolloutPercent: number;
   ownerTeam: string;
-  enabled: number;
+  enabled: boolean;
   lastChangedAt: string | null;
 }
 
@@ -218,7 +218,7 @@ const FEATURE_FLAGS: readonly SeedFlag[] = [
     environment: "production",
     rolloutPercent: 10,
     ownerTeam: "Payments",
-    enabled: 1,
+    enabled: true,
     lastChangedAt: "2026-08-01T09:00:00.000Z",
   },
   {
@@ -228,7 +228,7 @@ const FEATURE_FLAGS: readonly SeedFlag[] = [
     environment: "staging",
     rolloutPercent: 100,
     ownerTeam: "Payments",
-    enabled: 1,
+    enabled: true,
     lastChangedAt: "2026-07-21T15:30:00.000Z",
   },
   {
@@ -238,7 +238,7 @@ const FEATURE_FLAGS: readonly SeedFlag[] = [
     environment: "production",
     rolloutPercent: 50,
     ownerTeam: "Onboarding",
-    enabled: 1,
+    enabled: true,
     lastChangedAt: "2026-08-05T12:00:00.000Z",
   },
   {
@@ -248,7 +248,7 @@ const FEATURE_FLAGS: readonly SeedFlag[] = [
     environment: "staging",
     rolloutPercent: 100,
     ownerTeam: "Onboarding",
-    enabled: 1,
+    enabled: true,
     lastChangedAt: "2026-07-18T10:45:00.000Z",
   },
   {
@@ -258,89 +258,79 @@ const FEATURE_FLAGS: readonly SeedFlag[] = [
     environment: "production",
     rolloutPercent: 0,
     ownerTeam: "Risk",
-    enabled: 0,
+    enabled: false,
     lastChangedAt: null,
   },
 ];
 
 /** Clears all data and restores the deterministic starting state. */
-export function seed(db: SqliteDatabase): void {
-  db.transaction(() => {
-    db.exec(
-      `DELETE FROM activity_events;
-       DELETE FROM provider_executions;
-       DELETE FROM change_requests;
-       DELETE FROM users;
-       DELETE FROM refund_cases;
-       DELETE FROM kyc_cases;
-       DELETE FROM feature_flags;`,
-    );
-    const insertUser = db.prepare(
-      "INSERT INTO users (id, name, title, roles) VALUES (?, ?, ?, ?)",
+export async function seed(db: Db): Promise<void> {
+  await db.transact(async () => {
+    await db.query(
+      `TRUNCATE activity_events, provider_executions, change_requests,
+        users, refund_cases, kyc_cases, feature_flags`,
     );
     for (const user of SEED_USERS) {
-      insertUser.run(
-        user.id,
-        user.name,
-        user.title,
-        JSON.stringify(user.roles),
+      await db.query(
+        "INSERT INTO users (id, name, title, roles) VALUES ($1, $2, $3, $4)",
+        [user.id, user.name, user.title, JSON.stringify(user.roles)],
       );
     }
-    const insertRefund = db.prepare(
-      `INSERT INTO refund_cases (
-        id, order_id, customer_name, customer_email, charge_amount_cents,
-        charged_at, payment_method, risk_signals, risk_level
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
     for (const refund of REFUND_CASES) {
-      insertRefund.run(
-        refund.id,
-        refund.orderId,
-        refund.customerName,
-        refund.customerEmail,
-        refund.chargeAmountCents,
-        refund.chargedAt,
-        refund.paymentMethod,
-        JSON.stringify(refund.riskSignals),
-        refund.riskLevel,
+      await db.query(
+        `INSERT INTO refund_cases (
+          id, order_id, customer_name, customer_email, charge_amount_cents,
+          charged_at, payment_method, risk_signals, risk_level
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          refund.id,
+          refund.orderId,
+          refund.customerName,
+          refund.customerEmail,
+          refund.chargeAmountCents,
+          refund.chargedAt,
+          refund.paymentMethod,
+          JSON.stringify(refund.riskSignals),
+          refund.riskLevel,
+        ],
       );
     }
-    const insertKyc = db.prepare(
-      `INSERT INTO kyc_cases (
-        id, customer_name, customer_email, review_trigger, risk_level,
-        risk_rationale, state, evidence, opened_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
     for (const kyc of KYC_CASES) {
-      insertKyc.run(
-        kyc.id,
-        kyc.customerName,
-        kyc.customerEmail,
-        kyc.reviewTrigger,
-        kyc.riskLevel,
-        kyc.riskRationale,
-        kyc.state,
-        JSON.stringify(kyc.evidence),
-        kyc.openedAt,
+      await db.query(
+        `INSERT INTO kyc_cases (
+          id, customer_name, customer_email, review_trigger, risk_level,
+          risk_rationale, state, evidence, opened_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          kyc.id,
+          kyc.customerName,
+          kyc.customerEmail,
+          kyc.reviewTrigger,
+          kyc.riskLevel,
+          kyc.riskRationale,
+          kyc.state,
+          JSON.stringify(kyc.evidence),
+          kyc.openedAt,
+        ],
       );
     }
-    const insertFlag = db.prepare(
-      `INSERT INTO feature_flags (
-        id, key, description, environment, rollout_percent, owner_team,
-        enabled, last_changed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
     for (const flag of FEATURE_FLAGS) {
-      insertFlag.run(
-        flag.id,
-        flag.key,
-        flag.description,
-        flag.environment,
-        flag.rolloutPercent,
-        flag.ownerTeam,
-        flag.enabled,
-        flag.lastChangedAt,
+      await db.query(
+        `INSERT INTO feature_flags (
+          id, key, description, environment, rollout_percent, owner_team,
+          enabled, last_changed_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          flag.id,
+          flag.key,
+          flag.description,
+          flag.environment,
+          flag.rolloutPercent,
+          flag.ownerTeam,
+          flag.enabled,
+          flag.lastChangedAt,
+        ],
       );
     }
-  })();
+  });
 }

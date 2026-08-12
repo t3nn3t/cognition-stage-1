@@ -2,7 +2,7 @@ import type {
   ProviderExecutionRecord,
   ProviderExecutionRepository,
 } from "@/application/ports";
-import type { SqliteDatabase } from "../db";
+import type { Db } from "../db";
 
 interface ProviderExecutionRow {
   request_id: string;
@@ -27,37 +27,46 @@ function toRecord(row: ProviderExecutionRow): ProviderExecutionRecord {
 }
 
 export function createProviderExecutionRepository(
-  db: SqliteDatabase,
+  db: Db,
 ): ProviderExecutionRepository {
   return {
-    getByRequestId(requestId) {
-      const row = db
-        .prepare("SELECT * FROM provider_executions WHERE request_id = ?")
-        .get(requestId) as ProviderExecutionRow | undefined;
-      return row ? toRecord(row) : null;
+    async getByRequestId(requestId) {
+      const { rows } = await db.query<ProviderExecutionRow>(
+        "SELECT * FROM provider_executions WHERE request_id = $1",
+        [requestId],
+      );
+      return rows[0] ? toRecord(rows[0]) : null;
     },
-    recordIntent(record) {
-      db.prepare(
+    async recordIntent(record) {
+      await db.query(
         `INSERT INTO provider_executions (
           request_id, idempotency_key, status, provider_reference, detail,
           created_at, completed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        record.requestId,
-        record.idempotencyKey,
-        record.status,
-        record.providerReference,
-        record.detail,
-        record.createdAt,
-        record.completedAt,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          record.requestId,
+          record.idempotencyKey,
+          record.status,
+          record.providerReference,
+          record.detail,
+          record.createdAt,
+          record.completedAt,
+        ],
       );
     },
-    recordOutcome(requestId, status, providerReference, detail, completedAt) {
-      db.prepare(
+    async recordOutcome(
+      requestId,
+      status,
+      providerReference,
+      detail,
+      completedAt,
+    ) {
+      await db.query(
         `UPDATE provider_executions
-         SET status = ?, provider_reference = ?, detail = ?, completed_at = ?
-         WHERE request_id = ?`,
-      ).run(status, providerReference, detail, completedAt, requestId);
+         SET status = $1, provider_reference = $2, detail = $3, completed_at = $4
+         WHERE request_id = $5`,
+        [status, providerReference, detail, completedAt, requestId],
+      );
     },
   };
 }

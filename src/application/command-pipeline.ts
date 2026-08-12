@@ -57,11 +57,11 @@ export interface CommandContext {
  * evaluate policy → persist attempt or transition → approve or execute
  * adapter → persist outcome.
  */
-export function dispatchCommand(
+export async function dispatchCommand(
   ctx: CommandContext,
   actor: Actor,
   input: unknown,
-): CommandResult {
+): Promise<CommandResult> {
   const parsed = commandSchema.safeParse(input);
   if (!parsed.success) {
     return err({
@@ -99,8 +99,8 @@ function recordEvent(
     summary: string;
     metadata?: Record<string, string>;
   },
-): void {
-  ctx.events.insert({
+): Promise<void> {
+  return ctx.events.insert({
     id: ctx.ids.newId("evt"),
     requestId: input.requestId,
     correlationId: input.correlationId,
@@ -115,14 +115,14 @@ function recordEvent(
   });
 }
 
-function submitChangeRequest(
+async function submitChangeRequest(
   ctx: CommandContext,
   actor: Actor,
   payload: ChangePayload,
   reason: string,
   targetRiskLevel: RiskLevel,
   summaries: { submitted: string; blocked: (message: string) => string },
-): CommandResult {
+): Promise<CommandResult> {
   if (!actor.roles.includes("operations")) {
     return err({
       kind: "authorization",
@@ -133,8 +133,8 @@ function submitChangeRequest(
   const decision = evaluateSubmission(payload, targetRiskLevel);
   const now = ctx.clock.now();
   if (decision.kind === "blocked") {
-    ctx.uow.transact(() => {
-      recordEvent(ctx, {
+    await ctx.uow.transact(async () => {
+      await recordEvent(ctx, {
         requestId: null,
         correlationId,
         domain: payload.domain,
@@ -172,9 +172,9 @@ function submitChangeRequest(
     createdAt: now,
     updatedAt: now,
   };
-  ctx.uow.transact(() => {
-    ctx.changeRequests.insert(request);
-    recordEvent(ctx, {
+  await ctx.uow.transact(async () => {
+    await ctx.changeRequests.insert(request);
+    await recordEvent(ctx, {
       requestId: request.id,
       correlationId,
       domain: payload.domain,
@@ -187,16 +187,19 @@ function submitChangeRequest(
   return ok({ kind: "submitted", requestId: request.id });
 }
 
-function submitRefund(
+async function submitRefund(
   ctx: CommandContext,
   actor: Actor,
   command: SubmitRefundCommand,
-): CommandResult {
-  const refundCase = ctx.refundCases.getById(command.refundCaseId);
+): Promise<CommandResult> {
+  const refundCase = await ctx.refundCases.getById(command.refundCaseId);
   if (!refundCase) {
     return err({ kind: "not_found", message: "Refund case not found." });
   }
-  const open = ctx.changeRequests.findOpenByTarget("refund", refundCase.id);
+  const open = await ctx.changeRequests.findOpenByTarget(
+    "refund",
+    refundCase.id,
+  );
   if (open.length > 0) {
     return err({
       kind: "conflict",
@@ -224,12 +227,12 @@ function submitRefund(
   );
 }
 
-function submitKycDecision(
+async function submitKycDecision(
   ctx: CommandContext,
   actor: Actor,
   command: SubmitKycDecisionCommand,
-): CommandResult {
-  const kycCase = ctx.kycCases.getById(command.kycCaseId);
+): Promise<CommandResult> {
+  const kycCase = await ctx.kycCases.getById(command.kycCaseId);
   if (!kycCase) {
     return err({ kind: "not_found", message: "KYC case not found." });
   }
@@ -239,7 +242,7 @@ function submitKycDecision(
       message: "This KYC case has already been decided.",
     });
   }
-  const open = ctx.changeRequests.findOpenByTarget("kyc", kycCase.id);
+  const open = await ctx.changeRequests.findOpenByTarget("kyc", kycCase.id);
   if (open.length > 0) {
     return err({
       kind: "conflict",
@@ -266,12 +269,12 @@ function submitKycDecision(
   );
 }
 
-function submitFlagChange(
+async function submitFlagChange(
   ctx: CommandContext,
   actor: Actor,
   command: SubmitFlagChangeCommand,
-): CommandResult {
-  const flag = ctx.featureFlags.getById(command.flagId);
+): Promise<CommandResult> {
+  const flag = await ctx.featureFlags.getById(command.flagId);
   if (!flag) {
     return err({ kind: "not_found", message: "Feature flag not found." });
   }
@@ -287,7 +290,10 @@ function submitFlagChange(
       issues: ["The proposed rollout matches the current rollout."],
     });
   }
-  const open = ctx.changeRequests.findOpenByTarget("feature_flag", flag.id);
+  const open = await ctx.changeRequests.findOpenByTarget(
+    "feature_flag",
+    flag.id,
+  );
   if (open.length > 0) {
     return err({
       kind: "conflict",
@@ -315,12 +321,12 @@ function submitFlagChange(
   );
 }
 
-function approveRequest(
+async function approveRequest(
   ctx: CommandContext,
   actor: Actor,
   command: ApproveRequestCommand,
-): CommandResult {
-  const request = ctx.changeRequests.getById(command.requestId);
+): Promise<CommandResult> {
+  const request = await ctx.changeRequests.getById(command.requestId);
   if (!request) {
     return err({ kind: "not_found", message: "Request not found." });
   }
@@ -332,8 +338,8 @@ function approveRequest(
   }
   const decision = evaluateApproval(request, actor);
   if (decision.kind === "blocked") {
-    ctx.uow.transact(() => {
-      recordEvent(ctx, {
+    await ctx.uow.transact(async () => {
+      await recordEvent(ctx, {
         requestId: request.id,
         correlationId: request.correlationId,
         domain: request.domain,
@@ -350,8 +356,8 @@ function approveRequest(
     });
   }
   const now = ctx.clock.now();
-  return ctx.uow.transact(() => {
-    const updated = ctx.changeRequests.update(
+  return ctx.uow.transact(async () => {
+    const updated = await ctx.changeRequests.update(
       request.id,
       command.expectedVersion,
       {
@@ -369,7 +375,7 @@ function approveRequest(
           "This request changed while you were reviewing it. Reload and try again.",
       });
     }
-    recordEvent(ctx, {
+    await recordEvent(ctx, {
       requestId: request.id,
       correlationId: request.correlationId,
       domain: request.domain,
@@ -381,12 +387,12 @@ function approveRequest(
   });
 }
 
-function rejectRequest(
+async function rejectRequest(
   ctx: CommandContext,
   actor: Actor,
   command: RejectRequestCommand,
-): CommandResult {
-  const request = ctx.changeRequests.getById(command.requestId);
+): Promise<CommandResult> {
+  const request = await ctx.changeRequests.getById(command.requestId);
   if (!request) {
     return err({ kind: "not_found", message: "Request not found." });
   }
@@ -397,8 +403,8 @@ function rejectRequest(
     });
   }
   if (!actor.roles.includes(request.requiredApproverRole)) {
-    ctx.uow.transact(() => {
-      recordEvent(ctx, {
+    await ctx.uow.transact(async () => {
+      await recordEvent(ctx, {
         requestId: request.id,
         correlationId: request.correlationId,
         domain: request.domain,
@@ -414,8 +420,8 @@ function rejectRequest(
     });
   }
   const now = ctx.clock.now();
-  return ctx.uow.transact(() => {
-    const updated = ctx.changeRequests.update(
+  return ctx.uow.transact(async () => {
+    const updated = await ctx.changeRequests.update(
       request.id,
       command.expectedVersion,
       {
@@ -431,7 +437,7 @@ function rejectRequest(
           "This request changed while you were reviewing it. Reload and try again.",
       });
     }
-    recordEvent(ctx, {
+    await recordEvent(ctx, {
       requestId: request.id,
       correlationId: request.correlationId,
       domain: request.domain,
@@ -444,12 +450,12 @@ function rejectRequest(
   });
 }
 
-function executeRequest(
+async function executeRequest(
   ctx: CommandContext,
   actor: Actor,
   command: ExecuteRequestCommand,
-): CommandResult {
-  const request = ctx.changeRequests.getById(command.requestId);
+): Promise<CommandResult> {
+  const request = await ctx.changeRequests.getById(command.requestId);
   if (!request) {
     return err({ kind: "not_found", message: "Request not found." });
   }
@@ -463,10 +469,10 @@ function executeRequest(
     });
   }
 
-  const existing = ctx.providerExecutions.getByRequestId(request.id);
+  const existing = await ctx.providerExecutions.getByRequestId(request.id);
   if (existing && existing.status === "succeeded") {
-    ctx.uow.transact(() => {
-      recordEvent(ctx, {
+    await ctx.uow.transact(async () => {
+      await recordEvent(ctx, {
         requestId: request.id,
         correlationId: request.correlationId,
         domain: request.domain,
@@ -498,16 +504,20 @@ function executeRequest(
     ? existing.idempotencyKey
     : ctx.ids.newId("idem");
   const startedAt = ctx.clock.now();
-  const started = ctx.uow.transact(() => {
-    const updated = ctx.changeRequests.update(request.id, request.version, {
-      state: "executing",
-      updatedAt: startedAt,
-    });
+  const started = await ctx.uow.transact(async () => {
+    const updated = await ctx.changeRequests.update(
+      request.id,
+      request.version,
+      {
+        state: "executing",
+        updatedAt: startedAt,
+      },
+    );
     if (!updated) {
       return false;
     }
     if (!existing) {
-      ctx.providerExecutions.recordIntent({
+      await ctx.providerExecutions.recordIntent({
         requestId: request.id,
         idempotencyKey,
         status: "intent",
@@ -517,7 +527,7 @@ function executeRequest(
         completedAt: null,
       });
     }
-    recordEvent(ctx, {
+    await recordEvent(ctx, {
       requestId: request.id,
       correlationId: request.correlationId,
       domain: request.domain,
@@ -540,21 +550,21 @@ function executeRequest(
   const completedAt = ctx.clock.now();
   const executingVersion = request.version + 1;
 
-  return ctx.uow.transact(() => {
+  return ctx.uow.transact(async () => {
     if (result.kind === "failed") {
-      ctx.providerExecutions.recordOutcome(
+      await ctx.providerExecutions.recordOutcome(
         request.id,
         "failed",
         null,
         result.detail,
         completedAt,
       );
-      ctx.changeRequests.update(request.id, executingVersion, {
+      await ctx.changeRequests.update(request.id, executingVersion, {
         state: "failed",
         failureReason: result.detail,
         updatedAt: completedAt,
       });
-      recordEvent(ctx, {
+      await recordEvent(ctx, {
         requestId: request.id,
         correlationId: request.correlationId,
         domain: request.domain,
@@ -565,20 +575,20 @@ function executeRequest(
       });
       return err({ kind: "provider_failure", message: result.detail });
     }
-    ctx.providerExecutions.recordOutcome(
+    await ctx.providerExecutions.recordOutcome(
       request.id,
       "succeeded",
       result.providerReference,
       result.detail,
       completedAt,
     );
-    ctx.changeRequests.update(request.id, executingVersion, {
+    await ctx.changeRequests.update(request.id, executingVersion, {
       state: "executed",
       executedAt: completedAt,
       updatedAt: completedAt,
     });
-    applyDomainEffect(ctx, request, completedAt);
-    recordEvent(ctx, {
+    await applyDomainEffect(ctx, request, completedAt);
+    await recordEvent(ctx, {
       requestId: request.id,
       correlationId: request.correlationId,
       domain: request.domain,
@@ -629,11 +639,11 @@ function callProvider(
   }
 }
 
-function applyDomainEffect(
+async function applyDomainEffect(
   ctx: CommandContext,
   request: ChangeRequest,
   at: string,
-): void {
+): Promise<void> {
   const payload = request.payload;
   switch (payload.domain) {
     case "refund":
@@ -645,11 +655,11 @@ function applyDomainEffect(
           : payload.decision === "reject"
             ? "rejected"
             : "escalated";
-      ctx.kycCases.setState(payload.kycCaseId, state, at);
+      await ctx.kycCases.setState(payload.kycCaseId, state, at);
       break;
     }
     case "feature_flag":
-      ctx.featureFlags.setRollout(
+      await ctx.featureFlags.setRollout(
         payload.flagId,
         payload.proposedRolloutPercent,
         at,

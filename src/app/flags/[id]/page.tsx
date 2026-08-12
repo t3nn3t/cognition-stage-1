@@ -20,10 +20,10 @@ export default async function FlagDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const container = getContainer();
+  const container = await getContainer();
   const { context } = container;
   const actor = await container.identity.getCurrentActor();
-  const detail = getFlagDetail(context, id);
+  const detail = await getFlagDetail(context, id);
   if (!detail) {
     notFound();
   }

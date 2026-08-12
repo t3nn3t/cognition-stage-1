@@ -47,10 +47,9 @@ test("refund journey: request, blocked self-approval, approval, execution, idemp
     exact: true,
   });
   await expect(selfApprove).toBeDisabled();
-  await expect(selfApprove).toHaveAttribute(
-    "title",
-    "A requester cannot approve their own request.",
-  );
+  await expect(
+    page.locator('form[title="A requester cannot approve their own request."]'),
+  ).toBeVisible();
   await expect(page.getByText("Pending approval").first()).toBeVisible();
 
   // 3. Theo approves it (switching lands on Overview, then returns).

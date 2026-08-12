@@ -52,18 +52,17 @@ export function RequestActions({
       <div className="flex flex-wrap items-center gap-2">
         {state === "pending" && canDecide ? (
           <>
-            <form action={approve}>
+            <form
+              action={approve}
+              title={
+                isRequester
+                  ? "A requester cannot approve their own request."
+                  : undefined
+              }
+            >
               <input type="hidden" name="requestId" value={requestId} />
               <input type="hidden" name="expectedVersion" value={version} />
-              <Button
-                type="submit"
-                disabled={approving || isRequester}
-                title={
-                  isRequester
-                    ? "A requester cannot approve their own request."
-                    : undefined
-                }
-              >
+              <Button type="submit" disabled={approving || isRequester}>
                 Approve
               </Button>
             </form>

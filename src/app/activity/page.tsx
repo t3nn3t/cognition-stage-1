@@ -54,7 +54,7 @@ export default async function ActivityPage({
     : null;
   const actors = identity.listActors();
 
-  const filterHref = (overrides: Record<string, string>) => {
+  const filterHref = (overrides: Record<string, string> = {}) => {
     const next = new URLSearchParams();
     const merged = {
       domain: domainParam,
@@ -189,11 +189,7 @@ export default async function ActivityPage({
                     </TableCell>
                     <TableCell>
                       <Link
-                        href={
-                          filterHref({}) +
-                          (filterHref({}).includes("?") ? "&" : "?") +
-                          `event=${event.id}`
-                        }
+                        href={filterHref({ event: event.id })}
                         className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
                       >
                         Details
@@ -215,7 +211,7 @@ export default async function ActivityPage({
                 {EVENT_TYPE_LABELS[selected.type]}
               </h2>
               <Link
-                href={filterHref({})}
+                href={filterHref()}
                 aria-label="Close details"
                 className="text-sm text-zinc-400 hover:text-zinc-700"
               >

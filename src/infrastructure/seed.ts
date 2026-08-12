@@ -11,14 +11,14 @@ export const SEED_USERS: readonly Actor[] = [
   {
     id: "usr_theo",
     name: "Theo Grant",
-    title: "Finance & Release",
-    roles: ["finance_approver", "release_approver"],
+    title: "Finance & Compliance",
+    roles: ["finance_approver", "compliance_approver"],
   },
   {
     id: "usr_priya",
     name: "Priya Shah",
-    title: "Compliance",
-    roles: ["compliance_approver"],
+    title: "Release Approver",
+    roles: ["release_approver"],
   },
 ];
 

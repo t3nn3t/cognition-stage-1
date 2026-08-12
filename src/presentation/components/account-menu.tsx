@@ -93,7 +93,7 @@ export function AccountMenu({
                         disabled={candidate.id === actor.id}
                         className="block w-full rounded px-2 py-1 text-left text-sm text-zinc-700 hover:bg-zinc-50 disabled:font-medium disabled:text-indigo-700"
                       >
-                        {candidate.name}
+                        {candidate.name}{" "}
                         <span className="ml-1.5 text-xs text-zinc-400">
                           {candidate.title}
                         </span>

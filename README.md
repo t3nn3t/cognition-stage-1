@@ -68,8 +68,8 @@ OPS_IDENTITY_SWITCHING=enabled npm run dev
 
 The switcher then appears inside the account menu (top right); switching
 always returns to the Overview page. The server only accepts the three seeded
-identities — Maya Chen (operations + finance approver), Theo Grant (finance +
-release approver), Priya Shah (compliance officer). Only operations members
+identities — Maya Chen (Operations Lead), Theo Grant (Finance & Compliance),
+Priya Shah (Release Approver). Only operations members
 can submit requests, and approve/reject controls are shown only to holders of
 the required approver role (the server enforces both regardless); with the flag off, the switcher is absent
 and identity falls back to the default seed user. The same `IdentityProvider`
@@ -95,10 +95,10 @@ development flag is enabled):
 5. Retry execution — the original provider result is returned; Activity shows
    an idempotent replay, not a second payment.
 6. As Maya, submit an **approve** decision on the high-risk KYC case
-   (Ravi Narayanan). It routes to **Priya Shah** (Compliance) for approval.
+   (Ravi Narayanan). It routes to **Theo Grant** (Compliance) for approval.
 7. On the production `instant-payouts` flag, propose 10% → 100% — blocked by
    policy (max 25-point production increase). Propose 10% → 35% — accepted and
-   routed to **Theo Grant** (Release approver).
+   routed to **Priya Shah** (Release Approver).
 8. Activity shows every allowed and blocked attempt in human-readable form,
    with filters and a raw-metadata detail panel.
 9. Reset/reseed restores the deterministic starting state.

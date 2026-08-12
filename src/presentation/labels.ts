@@ -28,7 +28,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   operations: "Operations",
   finance_approver: "Finance",
   compliance_approver: "Compliance",
-  release_approver: "Release",
+  release_approver: "Release Approver",
 };
 
 export const EVENT_TYPE_LABELS: Record<ActivityEventType, string> = {

@@ -88,12 +88,15 @@ test("high-risk KYC decision routes to Priya for Compliance approval", async ({
   await page.goto("/kyc");
   await switchIdentity(page, "Maya Chen");
   await page.getByRole("link", { name: "Ravi Narayanan" }).click();
-  await page.getByLabel("Decision").selectOption({ label: "Approve" });
+  await page
+    .getByRole("group", { name: "Decision" })
+    .getByText("Approve", { exact: true })
+    .click();
   await page
     .getByLabel("Reason")
     .fill("Watchlist match reviewed; identity documents verified");
   await page.getByRole("button", { name: "Submit decision" }).click();
-  await expect(page.getByText("Requires Compliance Officer")).toBeVisible();
+  await expect(page.getByText("Requires Compliance")).toBeVisible();
 
   await switchIdentity(page, "Priya Shah");
   await page.getByRole("button", { name: "Approve", exact: true }).click();
@@ -122,7 +125,7 @@ test("production flag change: 10% to 100% is rejected by policy; 10% to 35% rout
   await page.getByLabel("Proposed rollout (%)").fill("35");
   await page.getByLabel("Reason").fill("Gradual rollout of instant payouts");
   await page.getByRole("button", { name: "Propose change" }).click();
-  await expect(page.getByText("Requires Release Manager")).toBeVisible();
+  await expect(page.getByText("Requires Release")).toBeVisible();
   await expect(page.getByText("10% → 35%")).toBeVisible();
 
   await switchIdentity(page, "Theo Grant");

@@ -37,7 +37,7 @@ export default function RefundsPage() {
         />
         <tbody>
           {queue.map(({ refundCase, request }) => (
-            <TableRow key={refundCase.id}>
+            <TableRow key={refundCase.id} href={`/refunds/${refundCase.id}`}>
               <TableCell>
                 <Link
                   href={`/refunds/${refundCase.id}`}

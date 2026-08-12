@@ -40,7 +40,7 @@ export default function KycPage() {
         />
         <tbody>
           {queue.map(({ kycCase, request }) => (
-            <TableRow key={kycCase.id}>
+            <TableRow key={kycCase.id} href={`/kyc/${kycCase.id}`}>
               <TableCell>
                 <Link
                   href={`/kyc/${kycCase.id}`}

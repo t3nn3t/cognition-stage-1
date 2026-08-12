@@ -170,7 +170,10 @@ export default async function ActivityPage({
               />
               <tbody>
                 {events.map((event) => (
-                  <TableRow key={event.id}>
+                  <TableRow
+                    key={event.id}
+                    href={filterHref({ event: event.id })}
+                  >
                     <TableCell>
                       <span className="font-medium text-zinc-900">
                         {EVENT_TYPE_LABELS[event.type]}

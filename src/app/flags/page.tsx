@@ -39,7 +39,7 @@ export default function FlagsPage() {
         />
         <tbody>
           {flags.map(({ flag, request }) => (
-            <TableRow key={flag.id}>
+            <TableRow key={flag.id} href={`/flags/${flag.id}`}>
               <TableCell>
                 <Link
                   href={`/flags/${flag.id}`}

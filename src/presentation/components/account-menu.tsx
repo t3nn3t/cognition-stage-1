@@ -73,8 +73,7 @@ export function AccountMenu({
         >
           <div className="border-b border-zinc-100 px-4 pb-2">
             <p className="text-sm font-medium text-zinc-900">{actor.name}</p>
-            <p className="text-xs text-zinc-500">{actor.title}</p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="text-xs text-zinc-500">
               {actor.roles.map((role) => ROLE_LABELS[role]).join(" · ")}
             </p>
           </div>
@@ -95,7 +94,7 @@ export function AccountMenu({
                         className="block w-full rounded px-2 py-1 text-left text-sm text-zinc-700 hover:bg-zinc-50 disabled:font-medium disabled:text-indigo-700"
                       >
                         {candidate.name}
-                        <span className="block text-xs text-zinc-400">
+                        <span className="ml-1.5 text-xs text-zinc-400">
                           {candidate.title}
                         </span>
                       </button>

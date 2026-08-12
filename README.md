@@ -98,7 +98,7 @@ development flag is enabled):
    (Ravi Narayanan). It routes to **Priya Shah** (Compliance) for approval.
 7. On the production `instant-payouts` flag, propose 10% → 100% — blocked by
    policy (max 25-point production increase). Propose 10% → 35% — accepted and
-   routed to **Theo Grant** (Release Manager).
+   routed to **Theo Grant** (Release approver).
 8. Activity shows every allowed and blocked attempt in human-readable form,
    with filters and a raw-metadata detail panel.
 9. Reset/reseed restores the deterministic starting state.
@@ -109,9 +109,9 @@ The same journey runs automatically in `e2e/acceptance.spec.ts`.
 
 - Every consequential action requires a non-empty reason.
 - A requester cannot approve their own request, even with the approver role.
-- High-risk KYC outcomes require a Compliance Officer.
-- Refunds above $500 require a Finance Approver.
-- Every production feature-flag increase requires a Release Manager.
+- High-risk KYC outcomes require Compliance approval.
+- Refunds above $500 require Finance approval.
+- Every production feature-flag increase requires Release approval.
 - A production rollout cannot increase by more than 25 percentage points per change.
 - Blocked, rejected, failed, approved, executing, executed, and idempotently
   replayed attempts all create attributable activity events.

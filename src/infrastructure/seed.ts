@@ -5,19 +5,19 @@ export const SEED_USERS: readonly Actor[] = [
   {
     id: "usr_maya",
     name: "Maya Chen",
-    title: "Finance Operations Lead",
+    title: "Operations Lead",
     roles: ["operations", "finance_approver"],
   },
   {
     id: "usr_theo",
     name: "Theo Grant",
-    title: "Finance & Release Approver",
+    title: "Finance & Release",
     roles: ["finance_approver", "release_approver"],
   },
   {
     id: "usr_priya",
     name: "Priya Shah",
-    title: "Compliance Officer",
+    title: "Compliance",
     roles: ["compliance_approver"],
   },
 ];

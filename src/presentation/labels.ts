@@ -26,9 +26,9 @@ export const DOMAIN_LABELS: Record<WorkflowDomain, string> = {
 
 export const ROLE_LABELS: Record<Role, string> = {
   operations: "Operations",
-  finance_approver: "Finance Approver",
-  compliance_approver: "Compliance Officer",
-  release_approver: "Release Manager",
+  finance_approver: "Finance",
+  compliance_approver: "Compliance",
+  release_approver: "Release",
 };
 
 export const EVENT_TYPE_LABELS: Record<ActivityEventType, string> = {

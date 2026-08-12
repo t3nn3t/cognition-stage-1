@@ -1,3 +1,6 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
 export function Table({ children }: { children: ReactNode }) {
@@ -26,9 +29,19 @@ export function TableHead({ columns }: { columns: readonly string[] }) {
   );
 }
 
-export function TableRow({ children }: { children: ReactNode }) {
+export function TableRow({
+  children,
+  href,
+}: {
+  children: ReactNode;
+  href?: string;
+}) {
+  const router = useRouter();
   return (
-    <tr className="border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50">
+    <tr
+      onClick={href ? () => router.push(href) : undefined}
+      className={`border-b border-zinc-100 last:border-b-0 hover:bg-zinc-50 ${href ? "cursor-pointer" : ""}`}
+    >
       {children}
     </tr>
   );

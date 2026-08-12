@@ -124,7 +124,7 @@ export default async function OverviewPage() {
               ))}
             </ul>
           )}
-          <p className="mt-2 text-xs">
+          <p className="mt-2 text-center text-xs">
             <Link
               href="/activity"
               className="font-medium text-indigo-600 hover:text-indigo-700"

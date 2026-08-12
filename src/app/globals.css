@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-accent: var(--color-indigo-600);
+  --color-accent-hover: var(--color-indigo-700);
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900 antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-indigo-600);
+  outline-offset: 2px;
+}

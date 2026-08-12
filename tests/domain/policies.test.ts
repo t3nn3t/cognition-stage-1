@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChangeRequest } from "@/domain/change-request";
 import { canTransition } from "@/domain/change-request";
-import {
-  evaluateApproval,
-  evaluateSubmission,
-} from "@/domain/policies";
+import { evaluateApproval, evaluateSubmission } from "@/domain/policies";
 import type { Actor } from "@/domain/shared";
 
 const maya: Actor = {
@@ -95,7 +92,11 @@ describe("evaluateSubmission — KYC", () => {
 });
 
 describe("evaluateSubmission — feature flags", () => {
-  function flagPayload(current: number, proposed: number, environment: "production" | "staging" = "production") {
+  function flagPayload(
+    current: number,
+    proposed: number,
+    environment: "production" | "staging" = "production",
+  ) {
     return {
       domain: "feature_flag",
       flagId: "flg_001",

@@ -82,14 +82,11 @@ function toKycCase(row: KycCaseRow): KycCase {
   };
 }
 
-export function createKycCaseRepository(
-  db: SqliteDatabase,
-): KycCaseRepository {
+export function createKycCaseRepository(db: SqliteDatabase): KycCaseRepository {
   return {
     getById(id) {
       const row = db.prepare("SELECT * FROM kyc_cases WHERE id = ?").get(id) as
-        | KycCaseRow
-        | undefined;
+        KycCaseRow | undefined;
       return row ? toKycCase(row) : null;
     },
     list() {

@@ -1,9 +1,8 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import { flatConfig } from "eslint-config-next";
+import nextConfig from "eslint-config-next";
 
 const eslintConfig = defineConfig([
-  ...flatConfig.coreWebVitals,
-  ...flatConfig.typescript,
+  ...nextConfig,
   globalIgnores([
     ".next/**",
     "node_modules/**",

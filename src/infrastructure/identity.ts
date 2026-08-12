@@ -35,8 +35,7 @@ function toActor(row: UserRow): Actor {
 export function createIdentityProvider(db: SqliteDatabase): IdentityProvider {
   function getUser(id: string): Actor | null {
     const row = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
-      | UserRow
-      | undefined;
+      UserRow | undefined;
     return row ? toActor(row) : null;
   }
   return {

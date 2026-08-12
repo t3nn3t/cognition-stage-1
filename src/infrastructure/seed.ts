@@ -122,8 +122,16 @@ const KYC_CASES: readonly SeedKycCase[] = [
       { label: "Legal name", value: "Ravi Narayanan", masked: false },
       { label: "Date of birth", value: "••••-••-14", masked: true },
       { label: "Government ID", value: "P•••••••982", masked: true },
-      { label: "Registered address", value: "Updated 12 days ago", masked: false },
-      { label: "Watchlist screen", value: "1 partial match (87% similarity)", masked: false },
+      {
+        label: "Registered address",
+        value: "Updated 12 days ago",
+        masked: false,
+      },
+      {
+        label: "Watchlist screen",
+        value: "1 partial match (87% similarity)",
+        masked: false,
+      },
     ],
     openedAt: "2026-08-06T08:30:00.000Z",
   },
@@ -140,7 +148,11 @@ const KYC_CASES: readonly SeedKycCase[] = [
       { label: "Legal name", value: "Emma Kowalski", masked: false },
       { label: "Date of birth", value: "••••-••-02", masked: true },
       { label: "Government ID", value: "D•••••••441", masked: true },
-      { label: "Document check", value: "Passed automated verification", masked: false },
+      {
+        label: "Document check",
+        value: "Passed automated verification",
+        masked: false,
+      },
     ],
     openedAt: "2026-08-08T13:05:00.000Z",
   },
@@ -157,8 +169,16 @@ const KYC_CASES: readonly SeedKycCase[] = [
       { label: "Legal name", value: "Tomás Herrera", masked: false },
       { label: "Date of birth", value: "••••-••-27", masked: true },
       { label: "Government ID", value: "N•••••••305", masked: true },
-      { label: "30-day inbound volume", value: "$412,800 (14x baseline)", masked: false },
-      { label: "New jurisdictions", value: "3 since last review", masked: false },
+      {
+        label: "30-day inbound volume",
+        value: "$412,800 (14x baseline)",
+        masked: false,
+      },
+      {
+        label: "New jurisdictions",
+        value: "3 since last review",
+        masked: false,
+      },
     ],
     openedAt: "2026-08-04T16:47:00.000Z",
   },
@@ -175,7 +195,11 @@ const KYC_CASES: readonly SeedKycCase[] = [
       { label: "Legal name", value: "Grace Adeyemi", masked: false },
       { label: "Date of birth", value: "••••-••-19", masked: true },
       { label: "Government ID", value: "P•••••••118", masked: true },
-      { label: "Proof of address", value: "Utility bill, dated within 60 days", masked: false },
+      {
+        label: "Proof of address",
+        value: "Utility bill, dated within 60 days",
+        masked: false,
+      },
     ],
     openedAt: "2026-08-09T10:12:00.000Z",
   },
@@ -261,7 +285,12 @@ export function seed(db: SqliteDatabase): void {
       "INSERT INTO users (id, name, title, roles) VALUES (?, ?, ?, ?)",
     );
     for (const user of SEED_USERS) {
-      insertUser.run(user.id, user.name, user.title, JSON.stringify(user.roles));
+      insertUser.run(
+        user.id,
+        user.name,
+        user.title,
+        JSON.stringify(user.roles),
+      );
     }
     const insertRefund = db.prepare(
       `INSERT INTO refund_cases (

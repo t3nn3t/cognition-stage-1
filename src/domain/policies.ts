@@ -96,8 +96,7 @@ export function evaluateSubmission(
 }
 
 export type ApprovalDecision =
-  | { kind: "allowed" }
-  | { kind: "blocked"; policyId: string; message: string };
+  { kind: "allowed" } | { kind: "blocked"; policyId: string; message: string };
 
 export function evaluateApproval(
   request: ChangeRequest,

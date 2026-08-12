@@ -5,7 +5,10 @@ import type {
   PaymentProvider,
 } from "@/application/ports";
 
-function deterministicReference(prefix: string, idempotencyKey: string): string {
+function deterministicReference(
+  prefix: string,
+  idempotencyKey: string,
+): string {
   const digest = createHash("sha256")
     .update(idempotencyKey)
     .digest("hex")

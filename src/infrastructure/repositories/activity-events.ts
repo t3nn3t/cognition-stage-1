@@ -85,9 +85,7 @@ export function createActivityEventRepository(
         params.push(filter.correlationId);
       }
       if (filter?.types && filter.types.length > 0) {
-        clauses.push(
-          `type IN (${filter.types.map(() => "?").join(", ")})`,
-        );
+        clauses.push(`type IN (${filter.types.map(() => "?").join(", ")})`);
         params.push(...filter.types);
       }
       if (filter?.since) {

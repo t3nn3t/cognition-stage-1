@@ -303,7 +303,9 @@ describe("provider failure and retry", () => {
       });
     }
     expect(ctx.changeRequests.getById(requestId)?.state).toBe("failed");
-    expect(ctx.events.list({ requestId, types: ["execution_failed"] })).toHaveLength(1);
+    expect(
+      ctx.events.list({ requestId, types: ["execution_failed"] }),
+    ).toHaveLength(1);
 
     const firstKey =
       ctx.providerExecutions.getByRequestId(requestId)?.idempotencyKey;
@@ -413,7 +415,9 @@ describe("rejection", () => {
     });
     expect(result.ok).toBe(true);
     expect(ctx.changeRequests.getById(requestId)?.state).toBe("rejected");
-    expect(ctx.events.list({ requestId, types: ["request_rejected"] })).toHaveLength(1);
+    expect(
+      ctx.events.list({ requestId, types: ["request_rejected"] }),
+    ).toHaveLength(1);
   });
 });
 

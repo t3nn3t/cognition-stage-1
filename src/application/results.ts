@@ -19,8 +19,7 @@ export type CommandSuccess =
     };
 
 export type CommandResult =
-  | { ok: true; value: CommandSuccess }
-  | { ok: false; error: CommandError };
+  { ok: true; value: CommandSuccess } | { ok: false; error: CommandError };
 
 export function ok(value: CommandSuccess): CommandResult {
   return { ok: true, value };

@@ -85,9 +85,9 @@ development flag is enabled):
 
 1. As **Maya Chen**, open Refunds → Daniel Okafor and request a **$1,250**
    refund with a reason. It routes to Finance approval and stays pending.
-2. Maya holds the Finance Approver role, but approving her own request is
-   blocked by separation of duties; the blocked attempt appears in Activity
-   and the request remains pending.
+2. Maya holds the Finance approver role, but separation of duties disables
+   the Approve button on her own request (and the server would block a
+   forged attempt regardless); the request remains pending.
 3. Switch to **Theo Grant** (switching always returns to Overview) and
    approve.
 4. Execute the refund — the payment adapter runs exactly once with its own

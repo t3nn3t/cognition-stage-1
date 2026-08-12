@@ -41,15 +41,17 @@ test("refund journey: request, blocked self-approval, approval, execution, idemp
   await expect(page.getByText("Pending approval").first()).toBeVisible();
   await expect(page.getByText("$1,250.00").first()).toBeVisible();
 
-  // 2. Maya cannot approve her own request; the blocked attempt is recorded.
-  await page.getByRole("button", { name: "Approve", exact: true }).click();
-  await expect(
-    page.getByText("A requester cannot approve their own request.", {
-      exact: true,
-    }),
-  ).toBeVisible();
+  // 2. Maya cannot approve her own request; the button is greyed out.
+  const selfApprove = page.getByRole("button", {
+    name: "Approve",
+    exact: true,
+  });
+  await expect(selfApprove).toBeDisabled();
+  await expect(selfApprove).toHaveAttribute(
+    "title",
+    "A requester cannot approve their own request.",
+  );
   await expect(page.getByText("Pending approval").first()).toBeVisible();
-  await expect(page.getByText("Attempt blocked").first()).toBeVisible();
 
   // 3. Theo approves it (switching lands on Overview, then returns).
   await switchIdentity(page, "Theo Grant");
@@ -161,13 +163,6 @@ test("activity shows allowed and blocked attempts in human-readable form", async
   await page.goto("/activity");
   await expect(
     page.getByText("Requested a refund of $1,250.00 for order ORD-48213"),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByText("Approval attempt was blocked: A requester cannot approve", {
-        exact: false,
-      })
-      .first(),
   ).toBeVisible();
 
   await page.goto("/activity?outcome=blocked");

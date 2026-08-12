@@ -142,6 +142,7 @@ export default async function RefundDetailPage({
                       actor.roles.includes("operations") ||
                       actor.roles.includes(request.requiredApproverRole)
                     }
+                    isRequester={actor.id === request.requesterId}
                   />
                 </div>
               </>

@@ -124,6 +124,7 @@ export default async function KycDetailPage({
                       actor.roles.includes("operations") ||
                       actor.roles.includes(request.requiredApproverRole)
                     }
+                    isRequester={actor.id === request.requesterId}
                   />
                 </div>
               </>

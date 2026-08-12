@@ -18,6 +18,7 @@ export function RequestActions({
   executeLabel,
   canDecide,
   canExecute,
+  isRequester,
 }: {
   requestId: string;
   state: LifecycleState;
@@ -25,6 +26,7 @@ export function RequestActions({
   executeLabel: string;
   canDecide: boolean;
   canExecute: boolean;
+  isRequester: boolean;
 }) {
   const [approveFeedback, approve, approving] = useActionState(
     approveRequestAction,
@@ -53,7 +55,15 @@ export function RequestActions({
             <form action={approve}>
               <input type="hidden" name="requestId" value={requestId} />
               <input type="hidden" name="expectedVersion" value={version} />
-              <Button type="submit" disabled={approving}>
+              <Button
+                type="submit"
+                disabled={approving || isRequester}
+                title={
+                  isRequester
+                    ? "A requester cannot approve their own request."
+                    : undefined
+                }
+              >
                 Approve
               </Button>
             </form>

@@ -1,9 +1,20 @@
-import { defaultDbPath, migrate, openDatabase } from "../src/infrastructure/db";
+import {
+  defaultDatabaseUrl,
+  migrate,
+  openDatabase,
+} from "../src/infrastructure/db";
 import { seed } from "../src/infrastructure/seed";
 
-const dbPath = defaultDbPath();
-const db = openDatabase(dbPath);
-migrate(db);
-seed(db);
-db.close();
-console.log(`Reset and seeded ${dbPath}`);
+async function main(): Promise<void> {
+  const databaseUrl = defaultDatabaseUrl();
+  const db = openDatabase(databaseUrl);
+  await migrate(db);
+  await seed(db);
+  await db.close();
+  console.log(`Reset and seeded ${databaseUrl.replace(/\/\/.*@/, "//***@")}`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CommandContext } from "@/application/command-pipeline";
 import { dispatchCommand } from "@/application/command-pipeline";
 import type { PaymentProvider } from "@/application/ports";
+import type { CommandResult } from "@/application/results";
 import type { Actor } from "@/domain/shared";
 import type { Container } from "@/infrastructure/container";
 import { buildContainer } from "@/infrastructure/container";
+
+const TEST_DATABASE_URL =
+  process.env.TEST_DATABASE_URL ?? "postgres://ops:ops@localhost:5432/ops_test";
 
 const maya: Actor = {
   id: "usr_maya",
@@ -34,9 +38,16 @@ const alex: Actor = {
 let container: Container;
 let ctx: CommandContext;
 
-beforeEach(() => {
-  container = buildContainer(":memory:");
-  container.reset();
+beforeAll(async () => {
+  container = await buildContainer(TEST_DATABASE_URL);
+});
+
+afterAll(async () => {
+  await container.db.close();
+});
+
+beforeEach(async () => {
+  await container.reset();
   ctx = container.context;
 });
 
@@ -49,7 +60,7 @@ function submitRefund(amountCents = 125_000) {
   });
 }
 
-function requestIdOf(result: ReturnType<typeof submitRefund>): string {
+function requestIdOf(result: CommandResult): string {
   if (!result.ok || result.value.kind !== "submitted") {
     throw new Error(`Expected submission, got ${JSON.stringify(result)}`);
   }
@@ -57,8 +68,8 @@ function requestIdOf(result: ReturnType<typeof submitRefund>): string {
 }
 
 describe("validation", () => {
-  it("rejects an empty reason", () => {
-    const result = dispatchCommand(ctx, maya, {
+  it("rejects an empty reason", async () => {
+    const result = await dispatchCommand(ctx, maya, {
       kind: "submit_refund",
       refundCaseId: "rfc_001",
       amountCents: 125_000,
@@ -71,11 +82,11 @@ describe("validation", () => {
         issues: ["A reason is required for this action."],
       },
     });
-    expect(ctx.changeRequests.list()).toHaveLength(0);
+    expect(await ctx.changeRequests.list()).toHaveLength(0);
   });
 
-  it("rejects malformed commands", () => {
-    const result = dispatchCommand(ctx, maya, {
+  it("rejects malformed commands", async () => {
+    const result = await dispatchCommand(ctx, maya, {
       kind: "submit_refund",
       amountCents: "not-a-number",
     });
@@ -85,8 +96,8 @@ describe("validation", () => {
     }
   });
 
-  it("rejects unknown command kinds", () => {
-    const result = dispatchCommand(ctx, maya, { kind: "drop_tables" });
+  it("rejects unknown command kinds", async () => {
+    const result = await dispatchCommand(ctx, maya, { kind: "drop_tables" });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.kind).toBe("validation");
@@ -95,8 +106,8 @@ describe("validation", () => {
 });
 
 describe("authorization", () => {
-  it("cannot be bypassed through client input: submission requires the operations role", () => {
-    const result = dispatchCommand(ctx, theo, {
+  it("cannot be bypassed through client input: submission requires the operations role", async () => {
+    const result = await dispatchCommand(ctx, theo, {
       kind: "submit_refund",
       refundCaseId: "rfc_001",
       amountCents: 10_000,
@@ -111,9 +122,9 @@ describe("authorization", () => {
     });
   });
 
-  it("blocks approval by an actor without the required role and records the attempt", () => {
-    const requestId = requestIdOf(submitRefund());
-    const result = dispatchCommand(ctx, priya, {
+  it("blocks approval by an actor without the required role and records the attempt", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    const result = await dispatchCommand(ctx, priya, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
@@ -122,16 +133,18 @@ describe("authorization", () => {
     if (!result.ok) {
       expect(result.error.kind).toBe("policy_blocked");
     }
-    const blocked = ctx.events.list({ outcome: "blocked" });
+    const blocked = await ctx.events.list({ outcome: "blocked" });
     expect(blocked).toHaveLength(1);
-    expect(ctx.changeRequests.getById(requestId)?.state).toBe("pending");
+    expect((await ctx.changeRequests.getById(requestId))?.state).toBe(
+      "pending",
+    );
   });
 });
 
 describe("separation of duties", () => {
-  it("blocks self-approval independently of role denial and keeps the request pending", () => {
-    const requestId = requestIdOf(submitRefund());
-    const result = dispatchCommand(ctx, maya, {
+  it("blocks self-approval independently of role denial and keeps the request pending", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    const result = await dispatchCommand(ctx, maya, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
@@ -144,43 +157,43 @@ describe("separation of duties", () => {
         message: "A requester cannot approve their own request.",
       },
     });
-    const request = ctx.changeRequests.getById(requestId);
+    const request = await ctx.changeRequests.getById(requestId);
     expect(request?.state).toBe("pending");
     expect(request?.version).toBe(0);
-    const blocked = ctx.events.list({ outcome: "blocked" });
+    const blocked = await ctx.events.list({ outcome: "blocked" });
     expect(blocked).toHaveLength(1);
     expect(blocked[0]?.actorId).toBe("usr_maya");
   });
 });
 
 describe("refund journey", () => {
-  it("submits, blocks self-approval, approves by Theo, executes once, and replays idempotently", () => {
-    const requestId = requestIdOf(submitRefund());
+  it("submits, blocks self-approval, approves by Theo, executes once, and replays idempotently", async () => {
+    const requestId = requestIdOf(await submitRefund());
 
-    const selfApproval = dispatchCommand(ctx, maya, {
+    const selfApproval = await dispatchCommand(ctx, maya, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
     expect(selfApproval.ok).toBe(false);
 
-    const approval = dispatchCommand(ctx, theo, {
+    const approval = await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
     expect(approval.ok).toBe(true);
-    expect(ctx.changeRequests.getById(requestId)?.approvedByName).toBe(
+    expect((await ctx.changeRequests.getById(requestId))?.approvedByName).toBe(
       "Theo Grant",
     );
 
-    const execution = dispatchCommand(ctx, maya, {
+    const execution = await dispatchCommand(ctx, maya, {
       kind: "execute_request",
       requestId,
     });
     expect(execution.ok).toBe(true);
     if (execution.ok && execution.value.kind === "executed") {
-      const replay = dispatchCommand(ctx, maya, {
+      const replay = await dispatchCommand(ctx, maya, {
         kind: "execute_request",
         requestId,
       });
@@ -195,14 +208,12 @@ describe("refund journey", () => {
       }
     }
 
-    const record = ctx.providerExecutions.getByRequestId(requestId);
+    const record = await ctx.providerExecutions.getByRequestId(requestId);
     expect(record?.status).toBe("succeeded");
     expect(record?.idempotencyKey).not.toBe(requestId);
 
-    const types = ctx.events
-      .list({ requestId })
-      .map((event) => event.type)
-      .sort();
+    const events = await ctx.events.list({ requestId });
+    const types = events.map((event) => event.type).sort();
     expect(types).toEqual(
       [
         "attempt_blocked",
@@ -215,16 +226,16 @@ describe("refund journey", () => {
     );
   });
 
-  it("uses an idempotency key distinct from request and correlation IDs", () => {
-    const requestId = requestIdOf(submitRefund());
-    dispatchCommand(ctx, theo, {
+  it("uses an idempotency key distinct from request and correlation IDs", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
-    dispatchCommand(ctx, maya, { kind: "execute_request", requestId });
-    const request = ctx.changeRequests.getById(requestId);
-    const record = ctx.providerExecutions.getByRequestId(requestId);
+    await dispatchCommand(ctx, maya, { kind: "execute_request", requestId });
+    const request = await ctx.changeRequests.getById(requestId);
+    const record = await ctx.providerExecutions.getByRequestId(requestId);
     expect(record?.idempotencyKey).toBeTruthy();
     expect(record?.idempotencyKey).not.toBe(requestId);
     expect(record?.idempotencyKey).not.toBe(request?.correlationId);
@@ -232,15 +243,15 @@ describe("refund journey", () => {
 });
 
 describe("optimistic concurrency", () => {
-  it("rejects a stale approval after the request has changed", () => {
-    const requestId = requestIdOf(submitRefund());
-    const first = dispatchCommand(ctx, theo, {
+  it("rejects a stale approval after the request has changed", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    const first = await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
     expect(first.ok).toBe(true);
-    const stale = dispatchCommand(ctx, theo, {
+    const stale = await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
@@ -251,9 +262,9 @@ describe("optimistic concurrency", () => {
     }
   });
 
-  it("rejects an approval with a stale version even while pending", () => {
-    const requestId = requestIdOf(submitRefund());
-    const result = dispatchCommand(ctx, theo, {
+  it("rejects an approval with a stale version even while pending", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    const result = await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 5,
@@ -262,12 +273,14 @@ describe("optimistic concurrency", () => {
     if (!result.ok) {
       expect(result.error.kind).toBe("conflict");
     }
-    expect(ctx.changeRequests.getById(requestId)?.state).toBe("pending");
+    expect((await ctx.changeRequests.getById(requestId))?.state).toBe(
+      "pending",
+    );
   });
 });
 
 describe("provider failure and retry", () => {
-  it("marks the request failed, records the event, and allows a safe retry", () => {
+  it("marks the request failed, records the event, and allows a safe retry", async () => {
     let calls = 0;
     const flaky: PaymentProvider = {
       refund(input) {
@@ -284,14 +297,14 @@ describe("provider failure and retry", () => {
     };
     ctx = { ...ctx, paymentProvider: flaky };
 
-    const requestId = requestIdOf(submitRefund());
-    dispatchCommand(ctx, theo, {
+    const requestId = requestIdOf(await submitRefund());
+    await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
 
-    const failure = dispatchCommand(ctx, maya, {
+    const failure = await dispatchCommand(ctx, maya, {
       kind: "execute_request",
       requestId,
     });
@@ -302,65 +315,66 @@ describe("provider failure and retry", () => {
         message: "Provider timeout",
       });
     }
-    expect(ctx.changeRequests.getById(requestId)?.state).toBe("failed");
+    expect((await ctx.changeRequests.getById(requestId))?.state).toBe("failed");
     expect(
-      ctx.events.list({ requestId, types: ["execution_failed"] }),
+      await ctx.events.list({ requestId, types: ["execution_failed"] }),
     ).toHaveLength(1);
 
-    const firstKey =
-      ctx.providerExecutions.getByRequestId(requestId)?.idempotencyKey;
-    const retry = dispatchCommand(ctx, maya, {
+    const firstRecord = await ctx.providerExecutions.getByRequestId(requestId);
+    const firstKey = firstRecord?.idempotencyKey;
+    const retry = await dispatchCommand(ctx, maya, {
       kind: "execute_request",
       requestId,
     });
     expect(retry.ok).toBe(true);
-    expect(ctx.changeRequests.getById(requestId)?.state).toBe("executed");
-    expect(
-      ctx.providerExecutions.getByRequestId(requestId)?.idempotencyKey,
-    ).toBe(firstKey);
+    expect((await ctx.changeRequests.getById(requestId))?.state).toBe(
+      "executed",
+    );
+    const retryRecord = await ctx.providerExecutions.getByRequestId(requestId);
+    expect(retryRecord?.idempotencyKey).toBe(firstKey);
     expect(calls).toBe(2);
   });
 });
 
 describe("KYC workflow through the shared path", () => {
-  it("routes a high-risk decision to compliance and applies it on execution", () => {
-    const submission = dispatchCommand(ctx, maya, {
+  it("routes a high-risk decision to compliance and applies it on execution", async () => {
+    const submission = await dispatchCommand(ctx, maya, {
       kind: "submit_kyc_decision",
       kycCaseId: "kyc_001",
       decision: "approve",
       reason: "Watchlist match reviewed; documents verified in person",
     });
     const requestId = requestIdOf(submission);
-    const request = ctx.changeRequests.getById(requestId);
+    const request = await ctx.changeRequests.getById(requestId);
     expect(request?.requiredApproverRole).toBe("compliance_approver");
     expect(request?.riskLevel).toBe("high");
 
-    const wrongApprover = dispatchCommand(ctx, theo, {
+    const wrongApprover = await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
     expect(wrongApprover.ok).toBe(false);
 
-    const approval = dispatchCommand(ctx, priya, {
+    const approval = await dispatchCommand(ctx, priya, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
     expect(approval.ok).toBe(true);
 
-    const execution = dispatchCommand(ctx, priya, {
+    const execution = await dispatchCommand(ctx, priya, {
       kind: "execute_request",
       requestId,
     });
     expect(execution.ok).toBe(true);
-    expect(ctx.kycCases.getById("kyc_001")?.state).toBe("approved");
+    expect((await ctx.kycCases.getById("kyc_001"))?.state).toBe("approved");
   });
 });
 
 describe("feature-flag workflow through the shared path", () => {
-  it("blocks 10% → 100% in production and records the blocked attempt", () => {
-    const result = dispatchCommand(ctx, maya, {
+  it("blocks 10% → 100% in production and records the blocked attempt", async () => {
+    const result = await dispatchCommand(ctx, maya, {
       kind: "submit_flag_change",
       flagId: "flg_001",
       environment: "production",
@@ -371,12 +385,12 @@ describe("feature-flag workflow through the shared path", () => {
     if (!result.ok) {
       expect(result.error.kind).toBe("policy_blocked");
     }
-    expect(ctx.changeRequests.list()).toHaveLength(0);
-    expect(ctx.events.list({ outcome: "blocked" })).toHaveLength(1);
+    expect(await ctx.changeRequests.list()).toHaveLength(0);
+    expect(await ctx.events.list({ outcome: "blocked" })).toHaveLength(1);
   });
 
-  it("accepts 10% → 35%, routes to the release manager, and applies on execution", () => {
-    const submission = dispatchCommand(ctx, maya, {
+  it("accepts 10% → 35%, routes to the release manager, and applies on execution", async () => {
+    const submission = await dispatchCommand(ctx, maya, {
       kind: "submit_flag_change",
       flagId: "flg_001",
       environment: "production",
@@ -384,56 +398,64 @@ describe("feature-flag workflow through the shared path", () => {
       reason: "Gradual rollout of instant payouts",
     });
     const requestId = requestIdOf(submission);
-    expect(ctx.changeRequests.getById(requestId)?.requiredApproverRole).toBe(
-      "release_approver",
-    );
+    expect(
+      (await ctx.changeRequests.getById(requestId))?.requiredApproverRole,
+    ).toBe("release_approver");
 
-    const approval = dispatchCommand(ctx, alex, {
+    const approval = await dispatchCommand(ctx, alex, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
     expect(approval.ok).toBe(true);
 
-    const execution = dispatchCommand(ctx, alex, {
+    const execution = await dispatchCommand(ctx, alex, {
       kind: "execute_request",
       requestId,
     });
     expect(execution.ok).toBe(true);
-    expect(ctx.featureFlags.getById("flg_001")?.rolloutPercent).toBe(35);
+    expect((await ctx.featureFlags.getById("flg_001"))?.rolloutPercent).toBe(
+      35,
+    );
   });
 });
 
 describe("rejection", () => {
-  it("lets the required approver reject with a reason", () => {
-    const requestId = requestIdOf(submitRefund());
-    const result = dispatchCommand(ctx, theo, {
+  it("lets the required approver reject with a reason", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    const result = await dispatchCommand(ctx, theo, {
       kind: "reject_request",
       requestId,
       expectedVersion: 0,
       reason: "Insufficient supporting evidence",
     });
     expect(result.ok).toBe(true);
-    expect(ctx.changeRequests.getById(requestId)?.state).toBe("rejected");
+    expect((await ctx.changeRequests.getById(requestId))?.state).toBe(
+      "rejected",
+    );
     expect(
-      ctx.events.list({ requestId, types: ["request_rejected"] }),
+      await ctx.events.list({ requestId, types: ["request_rejected"] }),
     ).toHaveLength(1);
   });
 });
 
 describe("reseeding", () => {
-  it("restores the deterministic starting state", () => {
-    const requestId = requestIdOf(submitRefund());
-    dispatchCommand(ctx, theo, {
+  it("restores the deterministic starting state", async () => {
+    const requestId = requestIdOf(await submitRefund());
+    await dispatchCommand(ctx, theo, {
       kind: "approve_request",
       requestId,
       expectedVersion: 0,
     });
-    container.reset();
-    expect(ctx.changeRequests.list()).toHaveLength(0);
-    expect(ctx.events.list()).toHaveLength(0);
-    expect(ctx.refundCases.list()).toHaveLength(4);
-    expect(ctx.kycCases.getById("kyc_001")?.state).toBe("pending_review");
-    expect(ctx.featureFlags.getById("flg_001")?.rolloutPercent).toBe(10);
+    await container.reset();
+    expect(await ctx.changeRequests.list()).toHaveLength(0);
+    expect(await ctx.events.list()).toHaveLength(0);
+    expect(await ctx.refundCases.list()).toHaveLength(4);
+    expect((await ctx.kycCases.getById("kyc_001"))?.state).toBe(
+      "pending_review",
+    );
+    expect((await ctx.featureFlags.getById("flg_001"))?.rolloutPercent).toBe(
+      10,
+    );
   });
 });

@@ -1,7 +1,7 @@
 import type { CommandContext } from "@/application/command-pipeline";
 import type { IdentityProvider } from "@/application/ports";
-import { defaultDbPath, migrate, openDatabase } from "./db";
-import type { SqliteDatabase } from "./db";
+import { defaultDatabaseUrl, migrate, openDatabase } from "./db";
+import type { Db } from "./db";
 import { createIdentityProvider } from "./identity";
 import {
   createFeatureFlagProvider,
@@ -19,22 +19,22 @@ import { createProviderExecutionRepository } from "./repositories/provider-execu
 import { seed } from "./seed";
 import {
   createIdGenerator,
-  createSqliteUnitOfWork,
+  createPgUnitOfWork,
   createSystemClock,
 } from "./system";
 
 export interface Container {
-  db: SqliteDatabase;
+  db: Db;
   context: CommandContext;
   identity: IdentityProvider;
-  reset(): void;
+  reset(): Promise<void>;
 }
 
-export function buildContainer(dbPath: string): Container {
-  const db = openDatabase(dbPath);
-  migrate(db);
+export async function buildContainer(databaseUrl: string): Promise<Container> {
+  const db = openDatabase(databaseUrl);
+  await migrate(db);
   const context: CommandContext = {
-    uow: createSqliteUnitOfWork(db),
+    uow: createPgUnitOfWork(db),
     clock: createSystemClock(),
     ids: createIdGenerator(),
     changeRequests: createChangeRequestRepository(db),
@@ -52,26 +52,28 @@ export function buildContainer(dbPath: string): Container {
     context,
     identity: createIdentityProvider(db),
     reset() {
-      seed(db);
+      return seed(db);
     },
   };
 }
 
 const globalContainer = globalThis as typeof globalThis & {
-  __opsConsoleContainer?: Container;
+  __opsConsoleContainer?: Promise<Container>;
 };
 
 /** Process-wide container; the dev server reuses it across HMR reloads. */
-export function getContainer(): Container {
+export function getContainer(): Promise<Container> {
   if (!globalContainer.__opsConsoleContainer) {
-    const container = buildContainer(defaultDbPath());
-    const hasUsers = container.db
-      .prepare("SELECT COUNT(*) AS count FROM users")
-      .get() as { count: number };
-    if (hasUsers.count === 0) {
-      container.reset();
-    }
-    globalContainer.__opsConsoleContainer = container;
+    globalContainer.__opsConsoleContainer = (async () => {
+      const container = await buildContainer(defaultDatabaseUrl());
+      const { rows } = await container.db.query<{ count: string }>(
+        "SELECT COUNT(*) AS count FROM users",
+      );
+      if (Number(rows[0]?.count ?? 0) === 0) {
+        await container.reset();
+      }
+      return container;
+    })();
   }
   return globalContainer.__opsConsoleContainer;
 }

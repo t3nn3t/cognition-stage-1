@@ -63,9 +63,9 @@ async function runCommand(
   input: unknown,
   revalidate: readonly string[],
 ): Promise<ActionFeedback> {
-  const container = getContainer();
+  const container = await getContainer();
   const actor = await container.identity.getCurrentActor();
-  const result = dispatchCommand(container.context, actor, input);
+  const result = await dispatchCommand(container.context, actor, input);
   for (const path of revalidate) {
     revalidatePath(path);
   }
@@ -176,10 +176,9 @@ export async function switchIdentityAction(formData: FormData): Promise<void> {
     return;
   }
   const userId = String(formData.get("userId") ?? "");
-  const container = getContainer();
-  const allowed = container.identity
-    .listActors()
-    .some((actor) => actor.id === userId);
+  const container = await getContainer();
+  const actors = await container.identity.listActors();
+  const allowed = actors.some((actor) => actor.id === userId);
   if (!allowed) {
     return;
   }

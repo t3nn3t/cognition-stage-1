@@ -5,7 +5,7 @@ import type {
   ActivityEventType,
 } from "@/domain/events";
 import type { WorkflowDomain } from "@/domain/shared";
-import type { SqliteDatabase } from "../db";
+import type { Db } from "../db";
 
 interface ActivityEventRow {
   id: string;
@@ -37,68 +37,66 @@ function toActivityEvent(row: ActivityEventRow): ActivityEvent {
   };
 }
 
-export function createActivityEventRepository(
-  db: SqliteDatabase,
-): ActivityEventRepository {
+export function createActivityEventRepository(db: Db): ActivityEventRepository {
   return {
-    insert(event) {
-      db.prepare(
+    async insert(event) {
+      await db.query(
         `INSERT INTO activity_events (
           id, request_id, correlation_id, domain, type, outcome, actor_id,
           actor_name, summary, metadata, occurred_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        event.id,
-        event.requestId,
-        event.correlationId,
-        event.domain,
-        event.type,
-        event.outcome,
-        event.actorId,
-        event.actorName,
-        event.summary,
-        JSON.stringify(event.metadata),
-        event.occurredAt,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          event.id,
+          event.requestId,
+          event.correlationId,
+          event.domain,
+          event.type,
+          event.outcome,
+          event.actorId,
+          event.actorName,
+          event.summary,
+          JSON.stringify(event.metadata),
+          event.occurredAt,
+        ],
       );
     },
-    list(filter) {
+    async list(filter) {
       const clauses: string[] = [];
-      const params: (string | number)[] = [];
+      const params: unknown[] = [];
       if (filter?.domain) {
-        clauses.push("domain = ?");
         params.push(filter.domain);
+        clauses.push(`domain = $${params.length}`);
       }
       if (filter?.actorId) {
-        clauses.push("actor_id = ?");
         params.push(filter.actorId);
+        clauses.push(`actor_id = $${params.length}`);
       }
       if (filter?.outcome) {
-        clauses.push("outcome = ?");
         params.push(filter.outcome);
+        clauses.push(`outcome = $${params.length}`);
       }
       if (filter?.requestId) {
-        clauses.push("request_id = ?");
         params.push(filter.requestId);
+        clauses.push(`request_id = $${params.length}`);
       }
       if (filter?.correlationId) {
-        clauses.push("correlation_id = ?");
         params.push(filter.correlationId);
+        clauses.push(`correlation_id = $${params.length}`);
       }
       if (filter?.types && filter.types.length > 0) {
-        clauses.push(`type IN (${filter.types.map(() => "?").join(", ")})`);
-        params.push(...filter.types);
+        params.push([...filter.types]);
+        clauses.push(`type = ANY($${params.length})`);
       }
       if (filter?.since) {
-        clauses.push("occurred_at >= ?");
         params.push(filter.since);
+        clauses.push(`occurred_at >= $${params.length}`);
       }
       const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
-      const limit = filter?.limit ?? 200;
-      const rows = db
-        .prepare(
-          `SELECT * FROM activity_events ${where} ORDER BY occurred_at DESC, id DESC LIMIT ?`,
-        )
-        .all(...params, limit) as ActivityEventRow[];
+      params.push(filter?.limit ?? 200);
+      const { rows } = await db.query<ActivityEventRow>(
+        `SELECT * FROM activity_events ${where} ORDER BY occurred_at DESC, id DESC LIMIT $${params.length}`,
+        params,
+      );
       return rows.map(toActivityEvent);
     },
   };

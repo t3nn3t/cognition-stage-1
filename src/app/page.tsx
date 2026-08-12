@@ -44,10 +44,10 @@ function requestTitle(request: ChangeRequest): string {
 }
 
 export default async function OverviewPage() {
-  const { context } = getContainer();
-  const pending = listPendingApprovals(context);
+  const { context } = await getContainer();
+  const pending = await listPendingApprovals(context);
   const highRisk = pending.filter((request) => request.riskLevel === "high");
-  const recentActivity = listActivity(context, { limit: 8 });
+  const recentActivity = await listActivity(context, { limit: 8 });
 
   return (
     <div>

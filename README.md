@@ -28,7 +28,7 @@ src/
                     pure policy functions, lifecycle transitions. No I/O.
   application/      command-pipeline.ts (the shared path), queries, typed
                     results, and the port interfaces it depends on.
-  infrastructure/   better-sqlite3 repositories, migration runner, seed data,
+  infrastructure/   Postgres (node-postgres) repositories, migration runner, seed data,
                     IdentityProvider, clock/IDs, deterministic provider adapters,
                     container.ts (composition root).
   presentation/     Shared UI primitives (table, badges, dialog, forms,
@@ -43,7 +43,7 @@ e2e/                Playwright acceptance journey.
 Key invariants:
 
 - Consequential rules run only on the server path; the UI never enforces policy alone.
-- State changes and activity events are written in one SQLite transaction.
+- State changes and activity events are written in one Postgres transaction.
 - Approvals use optimistic concurrency (`version` checks); stale or repeated
   approvals are rejected.
 - Refund execution uses a provider idempotency key **distinct from** the
@@ -55,9 +55,14 @@ Key invariants:
 
 ```bash
 npm ci                # install (Node >= 20)
-npm run db:reset      # create + migrate + seed data/ops.sqlite
+docker compose up -d  # local Postgres 16 (dev, test, and e2e databases)
+npm run db:reset      # migrate + seed the dev database
 npm run dev           # http://localhost:3000
 ```
+
+The app connects using `DATABASE_URL` (default
+`postgres://ops:ops@localhost:5432/ops`). The compose file also creates
+`ops_test` (integration tests) and `ops_e2e` (Playwright) databases.
 
 Enable development identity switching (used for the demonstration journey) by
 running with:
@@ -122,7 +127,7 @@ The same journey runs automatically in `e2e/acceptance.spec.ts`.
 | --------------------- | -------------------------------------------------------------------------------- |
 | Command pipeline      | Real — validation, authorization, policy, transactions, concurrency, idempotency |
 | Policies              | Real — pure functions with unit tests                                            |
-| Persistence           | Real SQLite with checked-in migrations; local file, not a managed database       |
+| Persistence           | Real Postgres with checked-in migrations; local container, not managed hosting   |
 | Activity history      | Real — recorded transactionally with state changes                               |
 | Identity              | Seeded allowlist behind an `IdentityProvider` interface; no real OIDC/SSO        |
 | Payment provider      | Deterministic in-process adapter; no real PSP call                               |
@@ -134,9 +139,9 @@ The same journey runs automatically in `e2e/acceptance.spec.ts`.
 
 - **Identity**: replace the cookie-based development switcher with OIDC/SSO
   claim mapping inside `IdentityProvider`; keep server-side role resolution.
-- **Persistence**: the repository interfaces in `src/application/ports.ts` are
-  the seam for moving to managed Postgres; domain policy and UI code do not
-  change. Add connection pooling and migration tooling in CI.
+- **Persistence**: already Postgres behind the repository interfaces in
+  `src/application/ports.ts`; point `DATABASE_URL` at a managed instance.
+  Add TLS, credential management, and migration tooling in CI.
 - **Authorization**: the pipeline already refuses client-supplied identity;
   production adds token verification and audience checks at the boundary.
 - **Providers**: real adapters need provider-side idempotency support, durable
@@ -158,7 +163,7 @@ The same journey runs automatically in `e2e/acceptance.spec.ts`.
 1. Add the domain payload variant to `ChangePayload` and a typed submit
    command in `src/domain/commands.ts`.
 2. Add its policy branch to `evaluateSubmission` with a required approver role.
-3. Add the target repository interface + SQLite implementation and seed data.
+3. Add the target repository interface + Postgres implementation and seed data.
 4. Add a provider adapter interface and deterministic implementation, and wire
    both into `container.ts` and the pipeline's `callProvider`/`applyDomainEffect`.
 5. Build the queue/detail pages from the existing primitives; approvals,
@@ -169,7 +174,7 @@ at every site that needs the new variant.
 
 ## Notes
 
-The SQLite database is a local file (`data/`, gitignored); the mock adapters
+The Postgres database runs locally via `docker compose up -d`; the mock adapters
 are deterministic so the acceptance journey is reproducible. Generated code in
 this repository still requires normal code review, security review, and
 compliance controls before production use.

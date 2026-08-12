@@ -22,12 +22,12 @@ export interface IdGenerator {
 }
 
 export interface UnitOfWork {
-  transact<T>(fn: () => T): T;
+  transact<T>(fn: () => Promise<T>): Promise<T>;
 }
 
 export interface ChangeRequestRepository {
-  getById(id: string): ChangeRequest | null;
-  insert(request: ChangeRequest): void;
+  getById(id: string): Promise<ChangeRequest | null>;
+  insert(request: ChangeRequest): Promise<void>;
   /**
    * Applies changes only when the stored version matches expectedVersion,
    * incrementing the version. Returns false on a version conflict.
@@ -46,12 +46,15 @@ export interface ChangeRequestRepository {
         | "failureReason"
       >
     > & { updatedAt: string },
-  ): boolean;
+  ): Promise<boolean>;
   list(filter?: {
     domain?: WorkflowDomain;
     state?: LifecycleState;
-  }): ChangeRequest[];
-  findOpenByTarget(domain: WorkflowDomain, targetId: string): ChangeRequest[];
+  }): Promise<ChangeRequest[]>;
+  findOpenByTarget(
+    domain: WorkflowDomain,
+    targetId: string,
+  ): Promise<ChangeRequest[]>;
 }
 
 export interface ActivityEventFilter {
@@ -66,25 +69,29 @@ export interface ActivityEventFilter {
 }
 
 export interface ActivityEventRepository {
-  insert(event: ActivityEvent): void;
-  list(filter?: ActivityEventFilter): ActivityEvent[];
+  insert(event: ActivityEvent): Promise<void>;
+  list(filter?: ActivityEventFilter): Promise<ActivityEvent[]>;
 }
 
 export interface RefundCaseRepository {
-  getById(id: string): RefundCase | null;
-  list(): RefundCase[];
+  getById(id: string): Promise<RefundCase | null>;
+  list(): Promise<RefundCase[]>;
 }
 
 export interface KycCaseRepository {
-  getById(id: string): KycCase | null;
-  list(): KycCase[];
-  setState(id: string, state: KycState, updatedAt: string): void;
+  getById(id: string): Promise<KycCase | null>;
+  list(): Promise<KycCase[]>;
+  setState(id: string, state: KycState, updatedAt: string): Promise<void>;
 }
 
 export interface FeatureFlagRepository {
-  getById(id: string): FeatureFlag | null;
-  list(): FeatureFlag[];
-  setRollout(id: string, rolloutPercent: number, changedAt: string): void;
+  getById(id: string): Promise<FeatureFlag | null>;
+  list(): Promise<FeatureFlag[]>;
+  setRollout(
+    id: string,
+    rolloutPercent: number,
+    changedAt: string,
+  ): Promise<void>;
 }
 
 export interface ProviderExecutionRecord {
@@ -98,15 +105,15 @@ export interface ProviderExecutionRecord {
 }
 
 export interface ProviderExecutionRepository {
-  getByRequestId(requestId: string): ProviderExecutionRecord | null;
-  recordIntent(record: ProviderExecutionRecord): void;
+  getByRequestId(requestId: string): Promise<ProviderExecutionRecord | null>;
+  recordIntent(record: ProviderExecutionRecord): Promise<void>;
   recordOutcome(
     requestId: string,
     status: "succeeded" | "failed",
     providerReference: string | null,
     detail: string | null,
     completedAt: string,
-  ): void;
+  ): Promise<void>;
 }
 
 export type ProviderResult =
@@ -141,5 +148,5 @@ export interface FeatureFlagProvider {
 export interface IdentityProvider {
   /** Resolves the current actor server-side. Never trusts client input. */
   getCurrentActor(): Promise<Actor>;
-  listActors(): Actor[];
+  listActors(): Promise<Actor[]>;
 }

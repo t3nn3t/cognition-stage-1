@@ -16,7 +16,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
-      OPS_CONSOLE_DB_PATH: "data/e2e.sqlite",
+      DATABASE_URL: "postgres://ops:ops@localhost:5432/ops_e2e",
       OPS_IDENTITY_SWITCHING: "enabled",
     },
   },

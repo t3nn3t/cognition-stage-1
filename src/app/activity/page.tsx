@@ -43,8 +43,8 @@ export default async function ActivityPage({
   const actorParam = typeof params.actor === "string" ? params.actor : "";
   const eventParam = typeof params.event === "string" ? params.event : "";
 
-  const { context, identity } = getContainer();
-  const events = listActivity(context, {
+  const { context, identity } = await getContainer();
+  const events = await listActivity(context, {
     domain: isDomain(domainParam) ? domainParam : undefined,
     outcome: isOutcome(outcomeParam) ? outcomeParam : undefined,
     actorId: actorParam || undefined,
@@ -52,7 +52,7 @@ export default async function ActivityPage({
   const selected = eventParam
     ? (events.find((event) => event.id === eventParam) ?? null)
     : null;
-  const actors = identity.listActors();
+  const actors = await identity.listActors();
 
   const filterHref = (overrides: Record<string, string> = {}) => {
     const next = new URLSearchParams();

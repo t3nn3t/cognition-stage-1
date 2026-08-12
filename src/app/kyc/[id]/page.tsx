@@ -21,10 +21,10 @@ export default async function KycDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const container = getContainer();
+  const container = await getContainer();
   const { context } = container;
   const actor = await container.identity.getCurrentActor();
-  const detail = getKycDetail(context, id);
+  const detail = await getKycDetail(context, id);
   if (!detail) {
     notFound();
   }

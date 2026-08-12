@@ -1,6 +1,6 @@
 import type { FeatureFlagRepository } from "@/application/ports";
 import type { FeatureFlag, FlagEnvironment } from "@/domain/targets";
-import type { SqliteDatabase } from "../db";
+import type { Db } from "../db";
 
 interface FeatureFlagRow {
   id: string;
@@ -9,7 +9,7 @@ interface FeatureFlagRow {
   environment: FlagEnvironment;
   rollout_percent: number;
   owner_team: string;
-  enabled: number;
+  enabled: boolean;
   last_changed_at: string | null;
 }
 
@@ -21,31 +21,31 @@ function toFeatureFlag(row: FeatureFlagRow): FeatureFlag {
     environment: row.environment,
     rolloutPercent: row.rollout_percent,
     ownerTeam: row.owner_team,
-    enabled: row.enabled === 1,
+    enabled: row.enabled,
     lastChangedAt: row.last_changed_at,
   };
 }
 
-export function createFeatureFlagRepository(
-  db: SqliteDatabase,
-): FeatureFlagRepository {
+export function createFeatureFlagRepository(db: Db): FeatureFlagRepository {
   return {
-    getById(id) {
-      const row = db
-        .prepare("SELECT * FROM feature_flags WHERE id = ?")
-        .get(id) as FeatureFlagRow | undefined;
-      return row ? toFeatureFlag(row) : null;
+    async getById(id) {
+      const { rows } = await db.query<FeatureFlagRow>(
+        "SELECT * FROM feature_flags WHERE id = $1",
+        [id],
+      );
+      return rows[0] ? toFeatureFlag(rows[0]) : null;
     },
-    list() {
-      const rows = db
-        .prepare("SELECT * FROM feature_flags ORDER BY key, environment")
-        .all() as FeatureFlagRow[];
+    async list() {
+      const { rows } = await db.query<FeatureFlagRow>(
+        "SELECT * FROM feature_flags ORDER BY key, environment",
+      );
       return rows.map(toFeatureFlag);
     },
-    setRollout(id, rolloutPercent, changedAt) {
-      db.prepare(
-        "UPDATE feature_flags SET rollout_percent = ?, last_changed_at = ? WHERE id = ?",
-      ).run(rolloutPercent, changedAt, id);
+    async setRollout(id, rolloutPercent, changedAt) {
+      await db.query(
+        "UPDATE feature_flags SET rollout_percent = $1, last_changed_at = $2 WHERE id = $3",
+        [rolloutPercent, changedAt, id],
+      );
     },
   };
 }

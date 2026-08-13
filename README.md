@@ -4,8 +4,7 @@ An internal fintech operations tool for **refunds**, **KYC review**, and
 **feature-flag administration**. Every change runs through one shared,
 server-enforced path: an operations member requests it, business policies are
 checked, a different person with the right approver role approves it, the
-external action executes exactly once (even if retried), and everything —
-including blocked attempts — lands in the activity history.
+external action executes once, and everything is tracked in the activity history.
 
 ## Running it
 

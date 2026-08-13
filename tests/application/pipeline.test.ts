@@ -373,29 +373,13 @@ describe("KYC workflow through the shared path", () => {
 });
 
 describe("feature-flag workflow through the shared path", () => {
-  it("blocks 10% → 100% in production and records the blocked attempt", async () => {
-    const result = await dispatchCommand(ctx, maya, {
+  it("accepts 10% → 100%, routes to the release manager, and applies on execution", async () => {
+    const submission = await dispatchCommand(ctx, maya, {
       kind: "submit_flag_change",
       flagId: "flg_001",
       environment: "production",
       proposedRolloutPercent: 100,
       reason: "Full rollout of instant payouts",
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.kind).toBe("policy_blocked");
-    }
-    expect(await ctx.changeRequests.list()).toHaveLength(0);
-    expect(await ctx.events.list({ outcome: "blocked" })).toHaveLength(1);
-  });
-
-  it("accepts 10% → 35%, routes to the release manager, and applies on execution", async () => {
-    const submission = await dispatchCommand(ctx, maya, {
-      kind: "submit_flag_change",
-      flagId: "flg_001",
-      environment: "production",
-      proposedRolloutPercent: 35,
-      reason: "Gradual rollout of instant payouts",
     });
     const requestId = requestIdOf(submission);
     expect(
@@ -415,7 +399,7 @@ describe("feature-flag workflow through the shared path", () => {
     });
     expect(execution.ok).toBe(true);
     expect((await ctx.featureFlags.getById("flg_001"))?.rolloutPercent).toBe(
-      35,
+      100,
     );
   });
 });

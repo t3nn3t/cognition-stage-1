@@ -69,7 +69,7 @@ export function AccountMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-10 mt-1 w-max min-w-64 max-w-md rounded-lg border border-zinc-200 bg-white py-2 shadow-lg"
+          className="absolute right-0 z-10 mt-1 w-80 rounded-lg border border-zinc-200 bg-white py-2 shadow-lg"
         >
           <div className="border-b border-zinc-100 px-4 pb-2">
             <p className="text-sm font-medium text-zinc-900">{actor.name}</p>

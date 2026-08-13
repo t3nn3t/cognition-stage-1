@@ -9,9 +9,11 @@ import { Field, inputClassName } from "./field";
 export function RefundRequestForm({
   refundCaseId,
   maxAmount,
+  defaultAmount,
 }: {
   refundCaseId: string;
   maxAmount: string;
+  defaultAmount: string;
 }) {
   const [feedback, submit, submitting] = useActionState(
     submitRefundAction,
@@ -33,6 +35,7 @@ export function RefundRequestForm({
           step="0.01"
           min="0.01"
           required
+          defaultValue={defaultAmount}
           className={inputClassName}
         />
       </Field>

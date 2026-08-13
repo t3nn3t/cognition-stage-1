@@ -107,19 +107,12 @@ describe("evaluateSubmission — feature flags", () => {
     } as const;
   }
 
-  it("blocks production increases above 25 percentage points", () => {
+  it("routes any production increase to the release approver", () => {
     const decision = evaluateSubmission(flagPayload(10, 100), "low");
-    expect(decision.kind).toBe("blocked");
-    if (decision.kind === "blocked") {
-      expect(decision.policyId).toBe("flag.production_increase_limit");
-    }
-  });
-
-  it("accepts a production increase of exactly 25 points and routes to release manager", () => {
-    const decision = evaluateSubmission(flagPayload(10, 35), "low");
     expect(decision.kind).toBe("accepted");
     if (decision.kind === "accepted") {
       expect(decision.evaluation.requiredApproverRole).toBe("release_approver");
+      expect(decision.evaluation.riskLevel).toBe("medium");
     }
   });
 
@@ -128,9 +121,12 @@ describe("evaluateSubmission — feature flags", () => {
     expect(decision.kind).toBe("accepted");
   });
 
-  it("does not apply the increase limit to staging", () => {
+  it("treats staging changes as low risk", () => {
     const decision = evaluateSubmission(flagPayload(0, 100, "staging"), "low");
     expect(decision.kind).toBe("accepted");
+    if (decision.kind === "accepted") {
+      expect(decision.evaluation.riskLevel).toBe("low");
+    }
   });
 });
 

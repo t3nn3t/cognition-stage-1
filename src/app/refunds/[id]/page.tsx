@@ -158,6 +158,9 @@ export default async function RefundDetailPage({
                     <RefundRequestForm
                       refundCaseId={refundCase.id}
                       maxAmount={formatMoney(refundCase.chargeAmount)}
+                      defaultAmount={(
+                        refundCase.chargeAmount.amountCents / 100
+                      ).toFixed(2)}
                     />
                   </div>
                 ) : (

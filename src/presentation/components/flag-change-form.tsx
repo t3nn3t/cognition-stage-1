@@ -43,7 +43,7 @@ export function FlagChangeForm({
         htmlFor="flag-rollout"
         hint={
           environment === "production"
-            ? "Production rollouts increase gradually — at most 25 percentage points per change, with Release approval."
+            ? "Production changes require Release approval."
             : undefined
         }
       >

@@ -101,9 +101,8 @@ development flag is enabled):
    an idempotent replay, not a second payment.
 6. As Maya, submit an **approve** decision on the high-risk KYC case
    (Ravi Narayanan). It routes to **Theo Grant** (Compliance) for approval.
-7. On the production `instant-payouts` flag, propose 10% → 100% — blocked by
-   policy (max 25-point production increase). Propose 10% → 35% — accepted and
-   routed to **Priya Shah** (Release Approver).
+7. On the production `instant-payouts` flag, propose 10% → 100% — routed to
+   **Priya Shah** (Release Approver).
 8. Activity shows every allowed and blocked attempt in human-readable form,
    with filters and a raw-metadata detail panel.
 9. Reset/reseed restores the deterministic starting state.
@@ -118,7 +117,6 @@ The same journey runs automatically in `e2e/acceptance.spec.ts`.
 - High-risk KYC outcomes require Compliance approval.
 - Refunds above $500 require Finance approval.
 - Every production feature-flag increase requires Release approval.
-- A production rollout cannot increase by more than 25 percentage points per change.
 - Blocked, rejected, failed, approved, executing, executed, and idempotently
   replayed attempts all create attributable activity events.
 

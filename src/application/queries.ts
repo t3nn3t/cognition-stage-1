@@ -1,5 +1,6 @@
 import type { ChangeRequest } from "@/domain/change-request";
 import type { ActivityEvent } from "@/domain/events";
+import type { Actor } from "@/domain/shared";
 import type { FeatureFlag, KycCase, RefundCase } from "@/domain/targets";
 import type { CommandContext } from "./command-pipeline";
 import type { ActivityEventFilter } from "./ports";
@@ -143,10 +144,16 @@ export async function getFlagDetail(
   return { flag, request, timeline };
 }
 
-export function listPendingApprovals(
+export async function listPendingApprovals(
   ctx: CommandContext,
+  actor: Actor,
 ): Promise<ChangeRequest[]> {
-  return ctx.changeRequests.list({ state: "pending" });
+  const pending = await ctx.changeRequests.list({ state: "pending" });
+  return pending.filter(
+    (request) =>
+      request.requesterId === actor.id ||
+      actor.roles.includes(request.requiredApproverRole),
+  );
 }
 
 export function listActivity(

@@ -13,7 +13,7 @@ Four layers under `src/`. Dependencies point inward only:
   authorize → evaluate policy → persist → approve/execute → record outcome.
   Depends only on `domain` and on interfaces it defines (repositories, providers,
   identity, clock, IDs). Never imports `infrastructure` or `presentation`.
-- `src/infrastructure` — better-sqlite3 repositories, migrations runner, seed
+- `src/infrastructure` — Postgres (node-postgres) repositories, migrations runner, seed
   data, `IdentityProvider`, clock/ID generation, deterministic provider adapters.
   Implements `application` interfaces.
 - `src/presentation` — shared UI primitives, view models, formatting. Server
@@ -25,7 +25,7 @@ Hard rules:
 - UI components never touch the database or provider adapters directly.
 - Every mutation goes through the shared command pipeline in
   `src/application/command-pipeline.ts` — no per-workflow bypasses.
-- State changes and activity events are written in one SQLite transaction.
+- State changes and activity events are written in one Postgres transaction.
 - Approvals use optimistic concurrency (`version` checks). Refund execution uses
   a provider idempotency key distinct from request/correlation IDs.
 - Identity resolves server-side via `IdentityProvider`; only seeded identities
@@ -43,7 +43,8 @@ Hard rules:
 
 ```
 npm ci                 # clean install
-npm run db:reset       # recreate + migrate + seed data/ops.sqlite
+docker compose up -d   # local Postgres 16 (creates dev, test, and e2e databases)
+npm run db:reset       # migrate + seed the dev database (DATABASE_URL, default postgres://ops:ops@localhost:5432/ops)
 npm run dev            # dev server (http://localhost:3000)
 npm run format         # prettier --write
 npm run format:check
@@ -69,8 +70,9 @@ npm run build          # production build
 - Server actions are thin: parse input, resolve identity, call a use case,
   map the typed result to UI feedback.
 - Tests live in `tests/` (vitest) and `e2e/` (Playwright). Policy functions get
-  focused unit tests; the command pipeline gets integration tests against an
-  in-memory SQLite database.
+  focused unit tests; the command pipeline gets integration tests against the
+  `ops_test` Postgres database (Playwright uses `ops_e2e`); both need
+  `docker compose up -d` first.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

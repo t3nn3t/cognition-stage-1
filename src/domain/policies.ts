@@ -3,7 +3,6 @@ import type { Actor, RiskLevel, Role } from "./shared";
 import { assertNever } from "./shared";
 
 export const FINANCE_APPROVAL_THRESHOLD_CENTS = 500_00;
-export const MAX_PRODUCTION_ROLLOUT_INCREASE = 25;
 
 export interface PolicyEvaluation {
   matchedPolicyIds: readonly string[];
@@ -65,13 +64,6 @@ export function evaluateSubmission(
       const increase =
         payload.proposedRolloutPercent - payload.currentRolloutPercent;
       if (payload.environment === "production") {
-        if (increase > MAX_PRODUCTION_ROLLOUT_INCREASE) {
-          return {
-            kind: "blocked",
-            policyId: "flag.production_increase_limit",
-            message: `A production rollout cannot increase by more than ${MAX_PRODUCTION_ROLLOUT_INCREASE} percentage points in one change.`,
-          };
-        }
         return {
           kind: "accepted",
           evaluation: {

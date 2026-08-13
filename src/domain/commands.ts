@@ -6,11 +6,13 @@ const reason = z
   .trim()
   .min(1, "A reason is required for this action.");
 
+const optionalReason = z.string().trim().default("");
+
 export const submitRefundCommandSchema = z.object({
   kind: z.literal("submit_refund"),
   refundCaseId: z.string().min(1),
   amountCents: z.number().int().positive(),
-  reason,
+  reason: optionalReason,
 });
 
 export const submitKycDecisionCommandSchema = z.object({
@@ -25,7 +27,7 @@ export const submitFlagChangeCommandSchema = z.object({
   flagId: z.string().min(1),
   environment: z.enum(FLAG_ENVIRONMENTS),
   proposedRolloutPercent: z.number().int().min(0).max(100),
-  reason,
+  reason: optionalReason,
 });
 
 export const approveRequestCommandSchema = z.object({

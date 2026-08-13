@@ -30,9 +30,16 @@ test("refund journey: request, blocked self-approval, approval, execution, idemp
   await page.goto("/");
   await switchIdentity(page, "Maya Chen");
 
-  // 1. Maya requests a $1,250 refund with a reason; it remains pending.
+  // 1. A refund above the original charge is blocked outright.
   await page.goto("/refunds");
   await page.getByRole("link", { name: "Daniel Okafor" }).click();
+  await page.getByLabel("Refund amount (USD)").fill("99999");
+  await page.getByRole("button", { name: "Request refund" }).click();
+  await expect(
+    page.getByText("A refund cannot exceed the original charge amount."),
+  ).toBeVisible();
+
+  // 2. Maya requests a $1,250 refund with a reason; it remains pending.
   await page.getByLabel("Refund amount (USD)").fill("1250");
   await page
     .getByLabel("Reason")
@@ -41,7 +48,7 @@ test("refund journey: request, blocked self-approval, approval, execution, idemp
   await expect(page.getByText("Pending approval").first()).toBeVisible();
   await expect(page.getByText("$1,250.00").first()).toBeVisible();
 
-  // 2. Maya cannot approve her own request; the button is greyed out.
+  // 3. Maya cannot approve her own request; the button is greyed out.
   const selfApprove = page.getByRole("button", {
     name: "Approve",
     exact: true,
@@ -52,20 +59,20 @@ test("refund journey: request, blocked self-approval, approval, execution, idemp
   ).toBeVisible();
   await expect(page.getByText("Pending approval").first()).toBeVisible();
 
-  // 3. Theo approves it (switching lands on Overview, then returns).
+  // 4. Theo approves it (switching lands on Overview, then returns).
   await switchIdentity(page, "Theo Grant");
   await page.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText("Request approved.")).toBeVisible();
   await expect(page.getByText("Approved by Theo Grant")).toBeVisible();
 
-  // 4. The payment adapter executes exactly once.
+  // 5. The payment adapter executes exactly once.
   await page.getByRole("button", { name: "Execute refund" }).click();
   await expect(page.getByText("Change executed.")).toBeVisible();
   await expect(
     page.getByText("Executed", { exact: true }).first(),
   ).toBeVisible();
 
-  // 5. Retrying execution returns the original provider result.
+  // 6. Retrying execution returns the original provider result.
   await page.getByRole("button", { name: "Retry execution" }).click();
   await expect(
     page.getByText(
@@ -105,29 +112,18 @@ test("high-risk KYC decision routes to Theo for Compliance approval", async ({
   await expect(page.getByText("Approved by Theo Grant")).toBeVisible();
 });
 
-test("production flag change: 10% to 100% is rejected by policy; 10% to 35% routes to the release approver", async ({
+test("production flag change: 10% to 100% routes to the release approver", async ({
   page,
 }) => {
   await page.goto("/flags");
   await switchIdentity(page, "Maya Chen");
   await page.getByRole("link", { name: "instant-payouts" }).first().click();
 
-  // 10% → 100% is blocked by the rollout-increase policy.
+  // Any production increase is accepted and routed to the Release Approver.
   await page.getByLabel("Proposed rollout (%)").fill("100");
-  await page.getByLabel("Reason").fill("Full rollout of instant payouts");
-  await page.getByRole("button", { name: "Propose change" }).click();
-  await expect(
-    page.getByText(
-      "A production rollout cannot increase by more than 25 percentage points in one change.",
-    ),
-  ).toBeVisible();
-
-  // 10% → 35% is accepted and routed to the Release Approver.
-  await page.getByLabel("Proposed rollout (%)").fill("35");
-  await page.getByLabel("Reason").fill("Gradual rollout of instant payouts");
   await page.getByRole("button", { name: "Propose change" }).click();
   await expect(page.getByText("Requires Release")).toBeVisible();
-  await expect(page.getByText("10% → 35%")).toBeVisible();
+  await expect(page.getByText("10% → 100%")).toBeVisible();
 
   await switchIdentity(page, "Priya Shah");
   await page.getByRole("button", { name: "Approve", exact: true }).click();
@@ -167,10 +163,9 @@ test("activity shows allowed and blocked attempts in human-readable form", async
   await page.goto("/activity?outcome=blocked");
   await expect(page.getByText("Attempt blocked").first()).toBeVisible();
   await expect(
-    page.getByText(
-      "Rollout change for instant-payouts (production) was blocked",
-      { exact: false },
-    ),
+    page.getByText("Refund request for order ORD-48213 was blocked", {
+      exact: false,
+    }),
   ).toBeVisible();
 });
 

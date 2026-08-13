@@ -44,8 +44,9 @@ function requestTitle(request: ChangeRequest): string {
 }
 
 export default async function OverviewPage() {
-  const { context } = await getContainer();
-  const pending = await listPendingApprovals(context);
+  const { context, identity } = await getContainer();
+  const actor = await identity.getCurrentActor();
+  const pending = await listPendingApprovals(context, actor);
   const highRisk = pending.filter((request) => request.riskLevel === "high");
   const recentActivity = await listActivity(context, { limit: 8 });
 

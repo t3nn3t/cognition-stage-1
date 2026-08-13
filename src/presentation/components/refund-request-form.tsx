@@ -36,12 +36,11 @@ export function RefundRequestForm({
           className={inputClassName}
         />
       </Field>
-      <Field label="Reason" htmlFor="refund-reason">
+      <Field label="Reason (optional)" htmlFor="refund-reason">
         <textarea
           id="refund-reason"
           name="reason"
           rows={3}
-          required
           className={inputClassName}
         />
       </Field>

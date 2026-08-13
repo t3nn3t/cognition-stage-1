@@ -112,7 +112,8 @@ The same journey runs automatically in `e2e/acceptance.spec.ts`.
 
 ## Policies enforced on the server path
 
-- Every consequential action requires a non-empty reason.
+- KYC decisions and rejections require a non-empty reason; refund and flag
+  reasons are optional.
 - A requester cannot approve their own request, even with the approver role.
 - High-risk KYC outcomes require Compliance approval.
 - Refunds above $500 require Finance approval.

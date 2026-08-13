@@ -104,7 +104,9 @@ export default async function RefundDetailPage({
                 <dl className="mt-3 space-y-2 text-sm">
                   <div>
                     <dt className="text-xs text-zinc-500">Reason</dt>
-                    <dd className="mt-0.5 text-zinc-900">{request.reason}</dd>
+                    <dd className="mt-0.5 text-zinc-900">
+                      {request.reason || "—"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-zinc-500">Requested by</dt>

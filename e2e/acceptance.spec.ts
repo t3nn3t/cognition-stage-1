@@ -114,7 +114,6 @@ test("production flag change: 10% to 100% is rejected by policy; 10% to 35% rout
 
   // 10% → 100% is blocked by the rollout-increase policy.
   await page.getByLabel("Proposed rollout (%)").fill("100");
-  await page.getByLabel("Reason").fill("Full rollout of instant payouts");
   await page.getByRole("button", { name: "Propose change" }).click();
   await expect(
     page.getByText(
@@ -124,7 +123,6 @@ test("production flag change: 10% to 100% is rejected by policy; 10% to 35% rout
 
   // 10% → 35% is accepted and routed to the Release Approver.
   await page.getByLabel("Proposed rollout (%)").fill("35");
-  await page.getByLabel("Reason").fill("Gradual rollout of instant payouts");
   await page.getByRole("button", { name: "Propose change" }).click();
   await expect(page.getByText("Requires Release")).toBeVisible();
   await expect(page.getByText("10% → 35%")).toBeVisible();

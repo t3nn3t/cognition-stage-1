@@ -5,7 +5,7 @@ import { submitFlagChangeAction } from "@/app/actions";
 import type { FlagEnvironment } from "@/domain/targets";
 import { Button } from "./button";
 import { FeedbackBanner, idleFeedback } from "./feedback";
-import { Field, inputClassName } from "./field";
+import { Field } from "./field";
 
 export function FlagChangeForm({
   flagId,
@@ -20,8 +20,7 @@ export function FlagChangeForm({
     submitFlagChangeAction,
     idleFeedback,
   );
-  const [proposed, setProposed] = useState("");
-  const proposedNumber = Number.parseInt(proposed, 10);
+  const [proposed, setProposed] = useState(currentRolloutPercent);
 
   return (
     <form action={submit} className="space-y-4">
@@ -36,8 +35,7 @@ export function FlagChangeForm({
           →
         </span>
         <div className="rounded-md bg-indigo-50 px-3 py-1.5 font-medium text-indigo-700">
-          Proposed:{" "}
-          {Number.isFinite(proposedNumber) ? `${proposedNumber}%` : "—"}
+          Proposed: {proposed}%
         </div>
       </div>
       <Field
@@ -52,23 +50,13 @@ export function FlagChangeForm({
         <input
           id="flag-rollout"
           name="proposedRolloutPercent"
-          type="number"
+          type="range"
           min="0"
           max="100"
           step="1"
-          required
           value={proposed}
-          onChange={(event) => setProposed(event.target.value)}
-          className={inputClassName}
-        />
-      </Field>
-      <Field label="Reason" htmlFor="flag-reason">
-        <textarea
-          id="flag-reason"
-          name="reason"
-          rows={3}
-          required
-          className={inputClassName}
+          onChange={(event) => setProposed(Number(event.target.value))}
+          className="w-full accent-indigo-600"
         />
       </Field>
       <Button type="submit" disabled={submitting}>

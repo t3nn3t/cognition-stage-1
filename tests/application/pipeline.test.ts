@@ -68,11 +68,11 @@ function requestIdOf(result: CommandResult): string {
 }
 
 describe("validation", () => {
-  it("rejects an empty reason", async () => {
+  it("rejects an empty reason on a KYC decision", async () => {
     const result = await dispatchCommand(ctx, maya, {
-      kind: "submit_refund",
-      refundCaseId: "rfc_001",
-      amountCents: 125_000,
+      kind: "submit_kyc_decision",
+      kycCaseId: "kyc_001",
+      decision: "approve",
       reason: "   ",
     });
     expect(result).toEqual({

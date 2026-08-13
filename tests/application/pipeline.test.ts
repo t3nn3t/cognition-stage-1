@@ -334,6 +334,33 @@ describe("provider failure and retry", () => {
     expect(retryRecord?.idempotencyKey).toBe(firstKey);
     expect(calls).toBe(2);
   });
+
+  it("treats a failed request as open, blocking a second request for the same target", async () => {
+    const broken: PaymentProvider = {
+      refund() {
+        return { kind: "failed", detail: "Provider timeout" };
+      },
+    };
+    ctx = { ...ctx, paymentProvider: broken };
+
+    const requestId = requestIdOf(await submitRefund());
+    await dispatchCommand(ctx, theo, {
+      kind: "approve_request",
+      requestId,
+      expectedVersion: 0,
+    });
+    await dispatchCommand(ctx, maya, { kind: "execute_request", requestId });
+    expect((await ctx.changeRequests.getById(requestId))?.state).toBe("failed");
+
+    const duplicate = await submitRefund();
+    expect(duplicate).toEqual({
+      ok: false,
+      error: {
+        kind: "conflict",
+        message: "An open refund request already exists for this case.",
+      },
+    });
+  });
 });
 
 describe("KYC workflow through the shared path", () => {

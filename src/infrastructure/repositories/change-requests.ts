@@ -73,6 +73,7 @@ const OPEN_STATES: readonly LifecycleState[] = [
   "pending",
   "approved",
   "executing",
+  "failed",
 ];
 
 export function createChangeRequestRepository(db: Db): ChangeRequestRepository {

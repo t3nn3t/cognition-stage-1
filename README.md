@@ -1,179 +1,42 @@
 # Operations Console
 
-An internal operations product for a fintech: **refund operations**, **KYC
-review**, and **feature-flag administration**, built on one shared,
-server-enforced controlled-action foundation.
+An internal fintech operations tool for **refunds**, **KYC review**, and
+**feature-flag administration**. Every change runs through one shared,
+server-enforced path: an operations member requests it, business policies are
+checked, a different person with the right approver role approves it, the
+external action executes exactly once (even if retried), and everything —
+including blocked attempts — lands in the activity history.
 
-## Hypothesis and scope
+## Running it
 
-These three workflows can share a single foundation — typed commands, policy
-evaluation, separation of duties, reason capture, approval, idempotent provider
-execution, and attributable activity history — while each team keeps a
-purpose-built interface. This repository deliberately builds exactly those
-three tools plus the reusable engineering foundation. It is intentionally
-**not** a low-code editor, JSON app renderer, or workflow DSL.
-
-## Architecture
-
-Every mutation flows through one application command path:
-
-```
-typed command → validate → load actor and target → authorize → evaluate policy
-→ persist attempt or transition → approve / execute provider adapter → persist outcome
-```
-
-```
-src/
-  domain/           Entities, value objects, typed commands (zod), events,
-                    pure policy functions, lifecycle transitions. No I/O.
-  application/      command-pipeline.ts (the shared path), queries, typed
-                    results, and the port interfaces it depends on.
-  infrastructure/   Postgres (node-postgres) repositories, migration runner, seed data,
-                    IdentityProvider, clock/IDs, deterministic provider adapters,
-                    container.ts (composition root).
-  presentation/     Shared UI primitives (table, badges, dialog, forms,
-                    timeline, empty states), centralized labels and formatting.
-  app/              Next.js App Router routes and server actions. Routes are
-                    thin: parse input, resolve identity, call the pipeline.
-db/migrations/      Checked-in SQL migrations.
-tests/              Vitest unit (policies, labels) and integration (pipeline).
-e2e/                Playwright acceptance journey.
-```
-
-Key invariants:
-
-- Consequential rules run only on the server path; the UI never enforces policy alone.
-- State changes and activity events are written in one Postgres transaction.
-- Approvals use optimistic concurrency (`version` checks); stale or repeated
-  approvals are rejected.
-- Refund execution uses a provider idempotency key **distinct from** the
-  request and correlation IDs; repeated execution of an executed request
-  returns the original provider result.
-- Blocked attempts are recorded as activity events without advancing the request.
-
-## Getting started
+Requires Node >= 20 and Docker.
 
 ```bash
-npm ci                # install (Node >= 20)
-docker compose up -d  # local Postgres 16 (dev, test, and e2e databases)
-npm run db:reset      # migrate + seed the dev database
-npm run dev           # http://localhost:3000
+npm ci                                        # install dependencies
+docker compose up -d                          # start local Postgres 16
+npm run db:reset                              # migrate + seed the database
+OPS_IDENTITY_SWITCHING=enabled npm run dev    # http://localhost:3000
 ```
 
-The app connects using `DATABASE_URL` (default
-`postgres://ops:ops@localhost:5432/ops`). The compose file also creates
-`ops_test` (integration tests) and `ops_e2e` (Playwright) databases.
+The `OPS_IDENTITY_SWITCHING` flag enables the development-only user switcher
+in the account menu (top right). The three seeded users are:
 
-Enable development identity switching (used for the demonstration journey) by
-running with:
+- **Maya Chen** — Operations Lead (submits requests, approves finance)
+- **Theo Grant** — Finance & Compliance approver
+- **Priya Shah** — Release approver
+
+Run `npm run db:reset` anytime to restore the deterministic seed data.
+
+## Other commands
 
 ```bash
-OPS_IDENTITY_SWITCHING=enabled npm run dev
+npm test              # unit + integration tests (uses the ops_test database)
+npm run test:e2e      # Playwright browser tests (uses the ops_e2e database)
+npm run lint          # eslint
+npm run typecheck     # tsc --noEmit
+npm run build         # production build
 ```
 
-The switcher then appears inside the account menu (top right); switching
-always returns to the Overview page. The server only accepts the three seeded
-identities — Maya Chen (Operations Lead), Theo Grant (Finance & Compliance),
-Priya Shah (Release Approver). Only operations members
-can submit requests, and approve/reject controls are shown only to holders of
-the required approver role (the server enforces both regardless); with the flag off, the switcher is absent
-and identity falls back to the default seed user. The same `IdentityProvider`
-interface is where OIDC/SSO claims would be mapped in production.
-
-Other commands: `npm run format` / `format:check`, `npm run lint`,
-`npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`.
-
-## Demonstration journey
-
-From a clean seed (`npm run db:reset`, or `POST /dev/reset` when the
-development flag is enabled):
-
-1. As **Maya Chen**, open Refunds → Daniel Okafor and request a **$1,250**
-   refund with a reason. It routes to Finance approval and stays pending.
-2. Maya holds the Finance approver role, but separation of duties disables
-   the Approve button on her own request (and the server would block a
-   forged attempt regardless); the request remains pending.
-3. Switch to **Theo Grant** (switching always returns to Overview) and
-   approve.
-4. Execute the refund — the payment adapter runs exactly once with its own
-   idempotency key.
-5. Retry execution — the original provider result is returned; Activity shows
-   an idempotent replay, not a second payment.
-6. As Maya, submit an **approve** decision on the high-risk KYC case
-   (Ravi Narayanan). It routes to **Theo Grant** (Compliance) for approval.
-7. On the production `instant-payouts` flag, propose 10% → 100% — routed to
-   **Priya Shah** (Release Approver).
-8. Activity shows every allowed and blocked attempt in human-readable form,
-   with filters and a raw-metadata detail panel.
-9. Reset/reseed restores the deterministic starting state.
-
-The same journey runs automatically in `e2e/acceptance.spec.ts`.
-
-## Policies enforced on the server path
-
-- KYC decisions and rejections require a non-empty reason; refund and flag
-  reasons are optional.
-- A requester cannot approve their own request, even with the approver role.
-- High-risk KYC outcomes require Compliance approval.
-- Refunds above $500 require Finance approval.
-- Every production feature-flag increase requires Release approval.
-- Blocked, rejected, failed, approved, executing, executed, and idempotently
-  replayed attempts all create attributable activity events.
-
-## Real versus mocked
-
-| Area                  | Status                                                                           |
-| --------------------- | -------------------------------------------------------------------------------- |
-| Command pipeline      | Real — validation, authorization, policy, transactions, concurrency, idempotency |
-| Policies              | Real — pure functions with unit tests                                            |
-| Persistence           | Real Postgres with checked-in migrations; local container, not managed hosting   |
-| Activity history      | Real — recorded transactionally with state changes                               |
-| Identity              | Seeded allowlist behind an `IdentityProvider` interface; no real OIDC/SSO        |
-| Payment provider      | Deterministic in-process adapter; no real PSP call                               |
-| KYC provider          | Deterministic in-process adapter; no real vendor call                            |
-| Feature-flag provider | Deterministic in-process adapter; applies rollout to the local store             |
-| Customer/case data    | Fictional seed data                                                              |
-
-## Production mapping
-
-- **Identity**: replace the cookie-based development switcher with OIDC/SSO
-  claim mapping inside `IdentityProvider`; keep server-side role resolution.
-- **Persistence**: already Postgres behind the repository interfaces in
-  `src/application/ports.ts`; point `DATABASE_URL` at a managed instance.
-  Add TLS, credential management, and migration tooling in CI.
-- **Authorization**: the pipeline already refuses client-supplied identity;
-  production adds token verification and audience checks at the boundary.
-- **Providers**: real adapters need provider-side idempotency support, durable
-  idempotency-key storage, an outbox or recovery worker for crash windows
-  between intent and outcome, and periodic reconciliation against provider
-  records. The `provider_executions` table records intent before execution and
-  the outcome afterwards to make that recovery possible.
-- **Event retention**: activity events are operational history, not a
-  tamper-evident audit log; production needs retention policy, export, and
-  access controls.
-- **Observability**: add structured logs with correlation IDs, metrics on
-  command outcomes, and alerting on execution failures.
-- **CI/CD & on-call**: run the full verification suite in CI; page the owning
-  team (Payments for refunds, Risk for KYC, Release for flags) on execution
-  failure alerts.
-
-## Adding a fourth controlled workflow
-
-1. Add the domain payload variant to `ChangePayload` and a typed submit
-   command in `src/domain/commands.ts`.
-2. Add its policy branch to `evaluateSubmission` with a required approver role.
-3. Add the target repository interface + Postgres implementation and seed data.
-4. Add a provider adapter interface and deterministic implementation, and wire
-   both into `container.ts` and the pipeline's `callProvider`/`applyDomainEffect`.
-5. Build the queue/detail pages from the existing primitives; approvals,
-   execution, activity, and the Overview queue work without foundation changes.
-
-Exhaustive `switch` statements over the payload union make the compiler point
-at every site that needs the new variant.
-
-## Notes
-
-The Postgres database runs locally via `docker compose up -d`; the mock adapters
-are deterministic so the acceptance journey is reproducible. Generated code in
-this repository still requires normal code review, security review, and
-compliance controls before production use.
+External providers (payment, KYC, feature flags) are deterministic in-process
+mocks; the data is fictional seed data. See `AGENTS.md` for architecture
+details.

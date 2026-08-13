@@ -12,6 +12,7 @@ Requires Node >= 20 and Docker.
 
 ```bash
 npm ci                                        # install dependencies
+npx playwright install chromium               # browser for the e2e tests
 docker compose up -d                          # start local Postgres 16
 npm run db:reset                              # migrate + seed the database
 OPS_IDENTITY_SWITCHING=enabled npm run dev    # http://localhost:3000
